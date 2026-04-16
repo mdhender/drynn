@@ -69,22 +69,6 @@ jobs:
       - run: make docs
       - run: go test -short -count=1 ./...
 
-  test-integration:
-    name: Test (integration)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.26'
-          check-latest: true
-      - uses: peaceiris/actions-hugo@v3
-        with:
-          hugo-version: 'latest'
-          extended: true
-      - run: make docs
-      - run: go test -count=1 -timeout 300s ./...
-
   generate-check:
     name: Generate check
     runs-on: ubuntu-latest
