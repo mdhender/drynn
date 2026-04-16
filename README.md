@@ -1,6 +1,6 @@
-# Hobo
+# Dryn
 
-Hobo is a Go web application for competition operations. It uses Echo v5 for HTTP routing, Go templates plus HTMX/Alpine.js for the frontend, PostgreSQL for persistence, sqlc for typed queries, and Atlas-style migrations.
+Dryn is a 4X PBBG game with a sci-fi theme.
 
 ## Features
 

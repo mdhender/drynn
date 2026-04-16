@@ -98,6 +98,17 @@ go run ./cmd/db seed-admin --handle admin --email admin@example.com --password '
 
 ## Using a Dedicated Postgres Schema
 
+Create a schema for Atlas to use for migration analysis:
+
+```sql
+CREATE ROLE drynn_atlas_user WITH LOGIN PASSWORD 'strong-password-here';
+CREATE DATABASE drynn_atlas OWNER drynn_atlas_user;
+\c drynn_atlas
+CREATE SCHEMA drynn_atlas AUTHORIZATION drynn_atlas_user;
+ALTER ROLE drynn_atlas_user IN DATABASE drynn_atlas SET search_path TO drynn_atlas, public;
+GRANT ALL ON SCHEMA drynn_atlas TO drynn_atlas_user;
+```
+
 If you want all application tables to live outside `public`, create a dedicated role, database, and schema first:
 
 ```sql
