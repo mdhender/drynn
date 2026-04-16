@@ -1,0 +1,11 @@
+*~
+*.lock
+*.swp
+.air.toml
+.amp/
+.claude/
+.codex/
+.idea/
+.vscode/
+public/
+tmp/

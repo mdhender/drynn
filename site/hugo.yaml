@@ -1,0 +1,42 @@
+baseURL: "https://drynn.test/"
+title: "Drynn"
+languageCode: "en-us"
+
+module:
+  imports:
+    - path: github.com/imfing/hextra
+
+enableGitInfo: true
+
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+  highlight:
+    noClasses: false
+
+params:
+  navbar:
+    displayTitle: true
+    displayLogo: false
+  sidebar:
+    autoCollapse: true
+
+menu:
+  main:
+    - identifier: docs
+      name: Docs
+      url: /docs/
+      weight: 10
+    - identifier: reference
+      name: Reference
+      url: /reference/
+      weight: 20
+    - identifier: history
+      name: History
+      url: /history/
+      weight: 30
+    - identifier: notes
+      name: Notes
+      url: /blog/
+      weight: 40

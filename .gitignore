@@ -1,19 +1,36 @@
 *~
 *.swp
-.air.toml
+tmp/
+
+# dot env files
+.env*
+!.env
+!.env.development
+!.env.production
+!.env.test
+
+# agent files
 .amp/
 .claude/
 .codex/
-.env
+
+# IDE files
+.code/
 .idea/
-Procfile.dev
+.vscode/
+
+# distribution files
 data/
 !site/data/
-tmp/
 
-# build artifacts
+# build files and artifacts
+.air.toml
+Procfile.dev
 bin/
 web/sitepublic/
+
+# agents like to run go build ./cmd/foo to test changes.
+# this keeps us from accidentally checking in the binaries
 db
 !db/
 email
