@@ -1,0 +1,24 @@
+{{define "content"}}
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Administration</p>
+    <h1>Send Invitation</h1>
+    <p class="lede small">Enter the email address of the person you'd like to invite. They'll receive an email with a registration link.</p>
+  </div>
+</section>
+<section class="card panel-card">
+  {{if .Error}}
+    <div class="error-banner">{{.Error}}</div>
+  {{end}}
+  <form class="form-stack" action="/app/admin/invitations" method="post">
+    <label>
+      <span>Email address</span>
+      <input name="email" type="email" value="{{.Email}}" placeholder="name@example.com" required>
+    </label>
+    <div class="panel-actions">
+      <button class="button button-primary" type="submit">Send invitation</button>
+      <a class="button button-secondary" href="/app/admin/invitations">Cancel</a>
+    </div>
+  </form>
+</section>
+{{end}}

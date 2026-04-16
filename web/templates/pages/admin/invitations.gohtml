@@ -1,0 +1,154 @@
+{{define "content"}}
+<section class="page-header split-header">
+  <div>
+    <p class="eyebrow">Administration</p>
+    <h1>Invitations</h1>
+    <p class="lede small">Send email invitations to allow new users to register. Each invitation can only be used once and expires after 7 days.</p>
+  </div>
+  <div>
+    <a class="button button-primary" href="/app/admin/invitations/new">New invitation</a>
+  </div>
+</section>
+<section class="card panel-card table-card">
+  <nav class="filter-tabs">
+    {{$current := .Filter}}
+    {{range .FilterOptions}}
+      {{if eq .Value $current}}
+        <a class="filter-tab active" href="/app/admin/invitations{{if .Value}}?filter={{.Value}}{{end}}">{{.Label}}</a>
+      {{else}}
+        <a class="filter-tab" href="/app/admin/invitations{{if .Value}}?filter={{.Value}}{{end}}">{{.Label}}</a>
+      {{end}}
+    {{end}}
+  </nav>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Invited by</th>
+          <th>Status</th>
+          <th>Expires</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Invitations}}
+          <tr>
+            <td>{{.Email}}</td>
+            <td>@{{.InvitedByHandle}}</td>
+            <td>
+              {{if .UsedAt}}
+                <span class="status-pill status-active">Used</span>
+              {{else if expired .ExpiresAt}}
+                <span class="status-pill status-inactive">Expired</span>
+              {{else}}
+                <span class="status-pill status-pending">Pending</span>
+              {{end}}
+            </td>
+            <td>{{formatTime .ExpiresAt}}</td>
+            <td>
+              <details class="row-menu">
+                <summary class="button button-ghost button-small">Actions</summary>
+                <div class="row-menu-panel">
+                  {{if .UsedAt}}
+                    <form action="/app/admin/invitations/{{.ID}}/archive" method="post">
+                      <button class="row-menu-item" type="submit">Archive</button>
+                    </form>
+                  {{else}}
+                    <form action="/app/admin/invitations/{{.ID}}/resend" method="post">
+                      <button class="row-menu-item" type="submit">Resend</button>
+                    </form>
+                    {{if not (expired .ExpiresAt)}}
+                      <button class="row-menu-item" type="button" data-copy-link="{{.RegisterURL}}">Copy link</button>
+                    {{end}}
+                  {{end}}
+                </div>
+              </details>
+            </td>
+          </tr>
+        {{else}}
+          <tr>
+            <td colspan="5">No invitations to display.</td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+</section>
+<script>
+  (function () {
+    var menus = [];
+
+    document.querySelectorAll('details.row-menu').forEach(function (details) {
+      var panel = details.querySelector('.row-menu-panel');
+      if (!panel) return;
+
+      document.body.appendChild(panel);
+      panel.classList.remove('open');
+      menus.push({ details: details, panel: panel });
+
+      details.addEventListener('toggle', function () {
+        if (details.open) {
+          closeAll(details);
+          showPanel(details, panel);
+        } else {
+          panel.classList.remove('open');
+        }
+      });
+    });
+
+    function closeAll(except) {
+      menus.forEach(function (m) {
+        if (m.details !== except && m.details.open) {
+          m.details.open = false;
+        }
+      });
+    }
+
+    function showPanel(details, panel) {
+      panel.classList.add('open');
+      var summary = details.querySelector('summary');
+      if (!summary) return;
+      var rect = summary.getBoundingClientRect();
+      var left = rect.right - panel.offsetWidth;
+      if (left < 8) left = 8;
+      panel.style.top = (rect.bottom + 6) + 'px';
+      panel.style.left = left + 'px';
+    }
+
+    document.addEventListener('click', function (event) {
+      var trigger = event.target.closest('[data-copy-link]');
+      if (trigger) {
+        event.preventDefault();
+        var url = trigger.getAttribute('data-copy-link');
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url);
+        } else {
+          var ta = document.createElement('textarea');
+          ta.value = url;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+        var original = trigger.textContent;
+        trigger.textContent = 'Copied!';
+        setTimeout(function () { trigger.textContent = original; }, 1200);
+        closeAll(null);
+        return;
+      }
+
+      if (!event.target.closest('.row-menu') && !event.target.closest('.row-menu-panel')) {
+        closeAll(null);
+      }
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') closeAll(null);
+    });
+
+    window.addEventListener('scroll', function () { closeAll(null); }, true);
+    window.addEventListener('resize', function () { closeAll(null); });
+  })();
+</script>
+{{end}}

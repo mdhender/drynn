@@ -1,0 +1,33 @@
+{{define "content"}}
+<section class="auth-shell">
+  <div class="card auth-card">
+    <p class="eyebrow">Create account</p>
+    <h1>Register your operator account</h1>
+    {{if .Error}}
+      <div class="error-banner">{{.Error}}</div>
+    {{end}}
+    {{if .Code}}
+      <p class="lede small">You've been invited as <strong>{{.Email}}</strong>. Choose a handle and password to complete your registration.</p>
+      <form class="form-stack" action="/register" method="post">
+        <input type="hidden" name="code" value="{{.Code}}">
+        <label>
+          <span>Handle</span>
+          <input name="handle" type="text" value="{{.Form.Handle}}" placeholder="scorekeeper" required>
+        </label>
+        <label>
+          <span>Email</span>
+          <input name="email" type="email" value="{{if .Form.Email}}{{.Form.Email}}{{else}}{{.Email}}{{end}}" required>
+        </label>
+        <label>
+          <span>Password</span>
+          <input name="password" type="password" placeholder="At least 8 characters" required>
+        </label>
+        <button class="button button-primary button-block" type="submit">Register</button>
+      </form>
+    {{else}}
+      <p class="lede small">Registration is by invitation only. If you've received an invitation, please use the link in your email.</p>
+    {{end}}
+    <p class="form-meta">Already have an account? <a href="/signin">Sign in</a>.</p>
+  </div>
+</section>
+{{end}}

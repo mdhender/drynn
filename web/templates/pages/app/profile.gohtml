@@ -1,0 +1,29 @@
+{{define "content"}}
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Self service</p>
+    <h1>Manage your profile</h1>
+    <p class="lede small">Your handle and email are always stored in lowercase, even if you type uppercase characters.</p>
+  </div>
+</section>
+<section class="card panel-card">
+  {{if .Error}}
+    <div class="error-banner">{{.Error}}</div>
+  {{end}}
+  <form class="form-stack" action="/app/profile" method="post">
+    <div class="form-grid">
+      <label>
+        <span>Handle</span>
+        <input name="handle" type="text" value="{{.Form.Handle}}" required>
+      </label>
+      <label>
+        <span>Email</span>
+        <input name="email" type="email" value="{{.Form.Email}}" required>
+      </label>
+    </div>
+    <div class="panel-actions">
+      <button class="button button-primary" type="submit">Save profile</button>
+    </div>
+  </form>
+</section>
+{{end}}

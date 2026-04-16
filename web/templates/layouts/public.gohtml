@@ -1,0 +1,30 @@
+{{define "base"}}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{.Title}}</title>
+    <link rel="stylesheet" href="/static/app.css">
+  </head>
+  <body class="public-body">
+    <div class="public-backdrop"></div>
+    <div class="public-frame">
+      <header class="public-header">
+        <a class="brand" href="/">
+          <span class="brand-mark">H</span>
+          <span>
+            <strong>Hobo</strong>
+            <small>Competition operations</small>
+          </span>
+        </a>
+        <nav class="public-nav">
+          <a class="button button-primary" href="/signin">Sign in</a>
+        </nav>
+      </header>
+      {{template "flash" .}}
+      {{template "content" .}}
+    </div>
+  </body>
+</html>
+{{end}}

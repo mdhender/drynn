@@ -1,0 +1,29 @@
+{{define "content"}}
+<section class="auth-shell">
+  <div class="card auth-card">
+    <p class="eyebrow">Welcome back</p>
+    <h1>Sign in to the control room</h1>
+    <p class="lede small">Sessions are issued as signed access and refresh JWT cookies.</p>
+    {{if .Error}}
+      <div class="error-banner">{{.Error}}</div>
+    {{end}}
+    <form class="form-stack" action="/signin" method="post">
+      <label>
+        <span>Email</span>
+        <input name="email" type="email" value="{{.Form.Email}}" placeholder="name@example.com" required>
+      </label>
+      <label>
+        <span>Password</span>
+        <input name="password" type="password" required>
+      </label>
+      <button class="button button-primary button-block" type="submit">Sign in</button>
+    </form>
+    <p class="form-meta"><a href="/forgot-password">Forgot your password?</a></p>
+    {{if .RequestAccessEnabled}}
+      <p class="form-meta">Need an account? <a href="/request-access">Request access</a>.</p>
+    {{else}}
+      <p class="form-meta">Need an account? Request an invite on the Discord server.</p>
+    {{end}}
+  </div>
+</section>
+{{end}}

@@ -1,0 +1,60 @@
+{{define "content"}}
+<section class="page-header split-header">
+  <div>
+    <p class="eyebrow">Administration</p>
+    <h1>User management</h1>
+    <p class="lede small">Create accounts, edit role assignments, deactivate users, or remove them entirely.</p>
+  </div>
+  <a class="button button-primary" href="/app/admin/users/new">New user</a>
+</section>
+<section class="card panel-card table-card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Handle</th>
+          <th>Email</th>
+          <th>Roles</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Users}}
+          <tr>
+            <td>
+              <strong>@{{.Handle}}</strong>
+            </td>
+            <td>{{.Email}}</td>
+            <td>{{join .Roles ", "}}</td>
+            <td>
+              {{if .IsActive}}
+                <span class="status-pill status-active">Active</span>
+              {{else}}
+                <span class="status-pill status-inactive">Inactive</span>
+              {{end}}
+            </td>
+            <td>{{formatTime .CreatedAt}}</td>
+            <td>
+              <div class="table-actions">
+                <a class="button button-secondary button-small" href="/app/admin/users/{{.ID}}/edit">Edit</a>
+                <form action="/app/admin/users/{{.ID}}/reset-password" method="post">
+                  <button class="button button-ghost button-small" type="submit">Reset password</button>
+                </form>
+                <form action="/app/admin/users/{{.ID}}/delete" method="post" onsubmit="return confirm('Delete user @{{.Handle}}? This cannot be undone.');">
+                  <button class="button button-ghost button-small" type="submit">Delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {{else}}
+          <tr>
+            <td colspan="6">No users have been created yet.</td>
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+</section>
+{{end}}

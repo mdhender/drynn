@@ -1,0 +1,32 @@
+{{define "sidebar"}}
+  <aside class="shell-sidebar">
+    <div>
+      <a class="brand brand-sidebar" href="/app">
+        <span class="brand-mark">H</span>
+        <span>
+          <strong>Hobo</strong>
+          <small>Competition control</small>
+        </span>
+      </a>
+      <nav class="sidebar-nav">
+        <a class="sidebar-link {{if eq .CurrentPath "/app/profile"}}active{{end}}" href="/app/profile">Profile</a>
+        {{if and .CurrentUser (.CurrentUser.HasRole "admin")}}
+          <a class="sidebar-link {{if hasPrefix .CurrentPath "/app/admin/users"}}active{{end}}" href="/app/admin/users">User Management</a>
+          <a class="sidebar-link {{if hasPrefix .CurrentPath "/app/admin/invitations"}}active{{end}}" href="/app/admin/invitations">Invitations</a>
+        {{end}}
+      </nav>
+    </div>
+    <div class="sidebar-footer">
+      {{if .CurrentUser}}
+        <div class="sidebar-user">
+          <strong>{{.CurrentUser.Handle}}</strong>
+          <span>@{{.CurrentUser.Handle}}</span>
+          <span>{{join .CurrentUser.Roles ", "}}</span>
+        </div>
+      {{end}}
+      <form action="/logout" method="post">
+        <button class="button button-secondary button-block" type="submit">Sign out</button>
+      </form>
+    </div>
+  </aside>
+{{end}}

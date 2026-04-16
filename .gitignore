@@ -1,0 +1,22 @@
+*~
+*.swp
+.air.toml
+.amp/
+.claude/
+.codex/
+.env
+.idea/
+Procfile.dev
+data/
+!site/data/
+tmp/
+
+# build artifacts
+bin/
+web/sitepublic/
+db
+!db/
+email
+!email/
+server
+!server/

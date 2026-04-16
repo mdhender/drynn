@@ -1,0 +1,37 @@
+{{define "content"}}
+<section class="auth-shell">
+  <div class="card auth-card">
+    <p class="eyebrow">Request access</p>
+    <h1>Ask for an invitation</h1>
+    {{if .Submitted}}
+      <p class="lede small">Thanks — your request is on its way to an administrator. If it's a fit, you'll receive an invitation email to finish creating your account.</p>
+      <p class="form-meta"><a href="/signin">Return to sign in</a>.</p>
+    {{else}}
+      <p class="lede small">Tell us how to reach you and a bit about why you're interested. An administrator will review and, if appropriate, send an invitation.</p>
+      {{if .Error}}
+        <div class="error-banner">{{.Error}}</div>
+      {{end}}
+      <form class="form-stack" action="/request-access" method="post">
+        <label>
+          <span>Email</span>
+          <input name="email" type="email" value="{{.Form.Email}}" placeholder="name@example.com" required>
+        </label>
+        <label>
+          <span>Why you're interested <small>(optional)</small></span>
+          <textarea name="reason" rows="4" maxlength="2000" placeholder="A sentence or two helps us route your request.">{{.Form.Reason}}</textarea>
+        </label>
+        <div aria-hidden="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden">
+          <label>
+            <span>Leave this field blank</span>
+            <input name="website" type="text" tabindex="-1" autocomplete="off">
+          </label>
+        </div>
+        <div class="form-actions">
+          <button class="button button-primary" type="submit">Send request</button>
+          <a class="button button-ghost" href="/signin">Cancel</a>
+        </div>
+      </form>
+    {{end}}
+  </div>
+</section>
+{{end}}

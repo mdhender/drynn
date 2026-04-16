@@ -1,0 +1,50 @@
+{{define "content"}}
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Administration</p>
+    <h1>{{.Heading}}</h1>
+    <p class="lede small">Every account holds the authenticated user role. Add the administrator role to grant management access.</p>
+  </div>
+</section>
+<section class="card panel-card">
+  {{if .Error}}
+    <div class="error-banner">{{.Error}}</div>
+  {{end}}
+  <form class="form-stack" action="{{.Action}}" method="post">
+    <div class="form-grid">
+      <label>
+        <span>Handle</span>
+        <input name="handle" type="text" value="{{.Form.Handle}}" required>
+      </label>
+      <label>
+        <span>Email</span>
+        <input name="email" type="email" value="{{.Form.Email}}" required>
+      </label>
+      <label>
+        <span>Password</span>
+        <input name="password" type="password" {{if eq .Heading "Create User"}}required{{end}}>
+      </label>
+    </div>
+    <fieldset class="role-grid">
+      <legend>Roles</legend>
+      {{range .RoleOptions}}
+        <label class="checkbox-card">
+          <input name="roles" type="checkbox" value="{{.Name}}" {{if index $.Form.Roles .Name}}checked{{end}}>
+          <span>
+            <strong>{{.Name}}</strong>
+            <small>{{.Description}}</small>
+          </span>
+        </label>
+      {{end}}
+    </fieldset>
+    <label class="checkbox-inline">
+      <input name="is_active" type="checkbox" {{if .Form.IsActive}}checked{{end}}>
+      <span>Account is active</span>
+    </label>
+    <div class="panel-actions">
+      <button class="button button-primary" type="submit">{{.SubmitLabel}}</button>
+      <a class="button button-secondary" href="{{.CancelURL}}">Cancel</a>
+    </div>
+  </form>
+</section>
+{{end}}
