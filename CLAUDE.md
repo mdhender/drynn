@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Go web app for competition operations. Echo v5 backend, HTMX/Alpine.js + Go templates frontend, PostgreSQL database. Runtime config loaded from a persisted JSON file with environment overrides.
 
+For bringing up a fresh checkout (Atlas first-run flags, missing gitignored files, Hugo-built `web/sitepublic/`), see [FIRST-RUN.md](FIRST-RUN.md).
+
 ## Commands
 
 ```bash
