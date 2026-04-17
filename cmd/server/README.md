@@ -46,7 +46,7 @@ These values are loaded by `internal/config` and can be overridden by environmen
 
 ```bash
 atlas migrate apply --dir file://db/migrations --url "$DATABASE_URL"
-go run ./cmd/db init-config --database-url "$DATABASE_URL"
+go run ./cmd/db init-config --database-url "$DATABASE_URL" --base-url "http://localhost:8080"
 go run ./cmd/db jwt-key create --type access
 go run ./cmd/db jwt-key create --type refresh
 go run ./cmd/db seed-admin --handle admin --email admin@example.com --password 'change-me-now'
@@ -59,7 +59,7 @@ go run ./cmd/server
 export DATABASE_URL='postgres://drynn_dev_user:strong-password-here@localhost:5432/drynn_dev?sslmode=disable'
 
 atlas migrate apply --allow-dirty --dir file://db/migrations --url "$DATABASE_URL"
-go run ./cmd/db init-config --config data/var/drynn/server.json --database-url "$DATABASE_URL"
+go run ./cmd/db init-config --config data/var/drynn/server.json --database-url "$DATABASE_URL" --base-url "http://localhost:8080"
 go run ./cmd/db jwt-key create --config data/var/drynn/server.json --type access
 go run ./cmd/db jwt-key create --config data/var/drynn/server.json --type refresh
 go run ./cmd/db seed-admin --config data/var/drynn/server.json --handle admin --email admin@example.com --password 'password123'

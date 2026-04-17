@@ -60,7 +60,7 @@ The server reads its settings from a JSON config file. Generate the
 default one:
 
 ```sh
-go run ./cmd/db init-config -database-url "$DATABASE_URL"
+go run ./cmd/db init-config -database-url "$DATABASE_URL" -base-url "http://localhost:8080"
 ```
 
 This writes `data/var/drynn/server.json` with sensible defaults:

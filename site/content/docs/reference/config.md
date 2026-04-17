@@ -20,6 +20,7 @@ The file uses version `1`. Unknown fields cause a startup error.
 |------------|-------------|------|---------|-------------|
 | `app_addr` | `APP_ADDR` | string | `:8080` | Listen address (host:port) |
 | `database_url` | `DATABASE_URL` | string | *(required)* | PostgreSQL connection string |
+| `base_url` | `DRYNN_BASE_URL` | string | *(required)* | Absolute base URL used to build invitation and password-reset links |
 | `data_dir` | `DATA_DIR` | string | `data/var/drynn/data` | Server-managed data directory |
 | `jwt_access_ttl` | `JWT_ACCESS_TTL` | duration | `15m` | Access token lifetime |
 | `jwt_refresh_ttl` | `JWT_REFRESH_TTL` | duration | `168h` | Refresh token lifetime (7 days) |
@@ -36,7 +37,7 @@ The file uses version `1`. Unknown fields cause a startup error.
 1. Hardcoded defaults are set.
 2. JSON file is read and merged (non-empty fields override defaults).
 3. Environment variables are applied (non-empty values override file).
-4. `database_url` is validated — startup fails if empty.
+4. `database_url` and `base_url` are validated — startup fails if either is empty.
 
 ## Type parsing
 
@@ -62,6 +63,7 @@ only active when Mailgun is configured. All three of `api_key`,
   "version": 1,
   "app_addr": ":8080",
   "database_url": "postgres://drynn:secret@localhost:5432/drynn?sslmode=disable",
+  "base_url": "https://drynn.example.com",
   "data_dir": "data/var/drynn/data",
   "jwt_access_ttl": "15m0s",
   "jwt_refresh_ttl": "168h0m0s",

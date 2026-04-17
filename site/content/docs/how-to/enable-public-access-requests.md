@@ -38,6 +38,7 @@ file:
 ```sh
 go run ./cmd/db init-config \
   -database-url "$DATABASE_URL" \
+  -base-url "https://drynn.example.com" \
   -request-access-enabled \
   -admin-contact-email admins@example.com
 ```

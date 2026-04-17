@@ -25,7 +25,8 @@ See `cmd/db/README.md` for the full SQL. You need:
 ```bash
 cp .env.example .env.development.local   # then edit credentials
 go run ./cmd/db init-config --config data/server.json \
-  --database-url "postgres://drynn_dev_user:<password>@localhost:5432/drynn_dev?sslmode=disable"
+  --database-url "postgres://drynn_dev_user:<password>@localhost:5432/drynn_dev?sslmode=disable" \
+  --base-url "http://localhost:8080"
 ```
 
 ### 3. Build the embedded marketing site

@@ -96,7 +96,6 @@ func LoadPath(path string) (Config, error) {
 		JWTAccessTTL:  15 * time.Minute,
 		JWTRefreshTTL: 7 * 24 * time.Hour,
 		CookieSecure:  false,
-		BaseURL:       "http://drynn.test:8989",
 	}
 
 	if err := mergeFileConfig(&cfg, path); err != nil {
@@ -107,6 +106,9 @@ func LoadPath(path string) (Config, error) {
 
 	if cfg.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("DATABASE_URL is required in %s or the environment", path)
+	}
+	if cfg.BaseURL == "" {
+		return Config{}, fmt.Errorf("base_url is required in %s or DRYNN_BASE_URL in the environment", path)
 	}
 
 	return cfg, nil
@@ -122,6 +124,11 @@ func WritePath(path string, options InitOptions) (Config, error) {
 		return Config{}, fmt.Errorf("database URL is required")
 	}
 
+	baseURL := strings.TrimSpace(options.BaseURL)
+	if baseURL == "" {
+		return Config{}, fmt.Errorf("base URL is required")
+	}
+
 	cfg := fileConfig{
 		Version:       configVersion,
 		AppAddr:       defaultString(options.AppAddr, ":8080"),
@@ -130,7 +137,7 @@ func WritePath(path string, options InitOptions) (Config, error) {
 		JWTAccessTTL:  defaultDuration(options.JWTAccessTTL, 15*time.Minute).String(),
 		JWTRefreshTTL: defaultDuration(options.JWTRefreshTTL, 7*24*time.Hour).String(),
 		CookieSecure:  options.CookieSecure,
-		BaseURL:       defaultString(options.BaseURL, "http://drynn.test:8989"),
+		BaseURL:       baseURL,
 		Mailgun: fileMailgunConfig{
 			APIKey:        strings.TrimSpace(options.Mailgun.APIKey),
 			SendingDomain: strings.TrimSpace(options.Mailgun.SendingDomain),

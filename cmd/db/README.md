@@ -14,13 +14,17 @@ Writes the JSON config file used by `cmd/server`.
 go run ./cmd/db init-config \
   --config data/var/drynn/server.json \
   --database-url "$DATABASE_URL" \
+  --base-url "https://drynn.example.com" \
   --data-dir data/var/drynn/data
 ```
+
+`--database-url` and `--base-url` are required. `--base-url` is the absolute URL used to build invitation and password-reset links in outbound email; there is no default because an unreachable placeholder would ship dead links.
 
 Useful flags:
 
 - `--app-addr`
 - `--database-url`
+- `--base-url`
 - `--data-dir`
 - `--jwt-access-ttl`
 - `--jwt-refresh-ttl`
@@ -90,7 +94,7 @@ Active keys cannot be deleted directly. Rotate or expire them first.
 
 ```bash
 atlas migrate apply --dir file://db/migrations --url "$DATABASE_URL"
-go run ./cmd/db init-config --database-url "$DATABASE_URL"
+go run ./cmd/db init-config --database-url "$DATABASE_URL" --base-url "http://localhost:8080"
 go run ./cmd/db jwt-key create --type access
 go run ./cmd/db jwt-key create --type refresh
 go run ./cmd/db seed-admin --handle admin --email admin@example.com --password 'change-me-now'
@@ -167,6 +171,7 @@ atlas migrate apply --allow-dirty --dir file://db/migrations --url "$DATABASE_UR
 go run ./cmd/db init-config \
   --config data/var/drynn/server.json \
   --database-url "$DATABASE_URL" \
+  --base-url "http://localhost:8080" \
   --data-dir data/var/drynn/data
 
 go run ./cmd/db jwt-key create --config data/var/drynn/server.json --type access

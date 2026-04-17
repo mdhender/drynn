@@ -20,7 +20,8 @@ cmd/db init-config [flags]
 |------|---------|-------------|
 | `--config` | `data/var/drynn/server.json` | Path to the server config file |
 | `--app-addr` | `:8080` | Server listen address |
-| `--database-url` | `""` | PostgreSQL connection string |
+| `--database-url` | *(required)* | PostgreSQL connection string |
+| `--base-url` | *(required)* | Absolute base URL for invitation and password-reset links |
 | `--data-dir` | `data/var/drynn/data` | Path for server-managed data files |
 | `--jwt-access-ttl` | `15m` | Access token lifetime |
 | `--jwt-refresh-ttl` | `168h` | Refresh token lifetime |

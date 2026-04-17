@@ -208,6 +208,7 @@ Use `drynn-db init-config` to write `/var/lib/drynn/config/server.json`. Run it 
 sudo -u drynn /opt/drynn/bin/drynn-db init-config \
   --config /var/lib/drynn/config/server.json \
   --database-url "$DATABASE_URL" \
+  --base-url "https://drynn.example.com" \
   --data-dir /var/lib/drynn/data \
   --app-addr 127.0.0.1:8080 \
   --cookie-secure true \

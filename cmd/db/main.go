@@ -86,6 +86,7 @@ func runInitConfig(args []string) error {
 	accessTTL := fs.Duration("jwt-access-ttl", 15*time.Minute, "access token lifetime")
 	refreshTTL := fs.Duration("jwt-refresh-ttl", 7*24*time.Hour, "refresh token lifetime")
 	cookieSecure := fs.Bool("cookie-secure", false, "set Secure on auth cookies")
+	baseURL := fs.String("base-url", "", "absolute base URL used for invitation and password-reset links (e.g. https://drynn.example.com)")
 	mailgunAPIKey := fs.String("mailgun-api-key", "", "Mailgun API key for outbound email")
 	mailgunDomain := fs.String("mailgun-sending-domain", "", "Mailgun sending domain (e.g. mg.example.com)")
 	mailgunFromAddr := fs.String("mailgun-from-address", "", "From address used on outbound email")
@@ -108,6 +109,7 @@ func runInitConfig(args []string) error {
 		JWTAccessTTL:  *accessTTL,
 		JWTRefreshTTL: *refreshTTL,
 		CookieSecure:  *cookieSecure,
+		BaseURL:       *baseURL,
 		Mailgun: email.MailgunConfig{
 			APIKey:        *mailgunAPIKey,
 			SendingDomain: *mailgunDomain,
