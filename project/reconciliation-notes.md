@@ -1,0 +1,151 @@
+# World Model / World Generation Reconciliation Notes
+
+Working notes for reconciling the drynn documentation set (`world-model.md`, `empire-model.md`, `units-model.md`, `world-generation.md`, `game-model.md`) against the current architecture. The reference docs were copied from a prior game engine; this tracks what needs to change before any of them is treated as a spec.
+
+## Resolved (standalone-items pass, 2026-04-16)
+
+- **A2** — `Game` entity defined in new `project/reference/game-model.md` with fields `ID`, `Name`, `Status`, `Current Turn`.
+- **B3** — `Empire Jump Point Knowledge` PK stated as `(Empire ID, Route ID, System ID)`; entity moved to `empire-model.md` under "Per-Empire World Views."
+- **B7** — Jump Route invariants: canonical ordering (`System A ID < System B ID`) plus `UNIQUE (Game ID, System A ID, System B ID)` prevent self-loops and reverse-duplicate rows.
+- **C2** — Deposit resource types expanded from "ore or fuel" to `ore`, `fuel`, `gold`, `materials`.
+- **E1** — Per-empire system naming: new `Empire System Name` entity added to `empire-model.md`.
+- **E2** — Game-level turn/clock: `Current Turn` field on `Game`.
+- **Placement cluster** — Empire Jump Point Knowledge and Empire System Name live in `empire-model.md`. Resource-type constants split: deposit types (`ore`, `fuel`, `gold`, `materials`) in `world-model.md`; mine-output types (`metals`, `fuel`, `gold`, `non-metals`), `food`, and `rstu` in `units-model.md`. Deposit-to-output mapping chart will live with the Mine entity during the units hoist.
+- **New field** — `Last Turn Used` added to Jump Route.
+- **Doc scope boundary** — world-model = pre-empire physical world only; post-empire entities go to empire-model (control + per-empire views) or units-model.
+- **Units/empire split (revision)** — `units-model.md` holds *type definitions only* (ship classes, building templates, unit-output constants, population types, factory recipes, deposit-to-output mapping). Empire-owned *instance* entities (Colony, Ship, Mine, Farm, Factory, Population Group, Training Queue, Inventory) go to `empire-model.md` during the Phase 2 hoist. This supersedes the earlier "empire-owned technical assets" framing.
+- **A1 (Game ID denormalization)** — every game-scoped entity carries a `Game ID` that FKs to `game-model.md`. Composite FKs prevent cross-game references. `Agent` is global. Details in `game-model.md` §Game ID Invariant.
+
+## Resolved (units hoist — Sub-sweep 3, 2026-04-16)
+
+- **`Population Group`** hoisted to `empire-model.md`: PK `(Game ID, Vessel ID, Group Type)`. `Group Type` is an inline enum (`untrained`, `worker`, `manager`, `soldier`, `pilot`). Previous Colony-ID / Ship-ID XOR replaced by single Vessel ID.
+- **`Training Queue`** hoisted to `empire-model.md`: PK `(ID)` + `UNIQUE (Game ID, ID)`. Vessel ID replaces Colony ID. Training durations retained in an inline subsection. Engine enforces training-on-colony-type-vessels.
+- **`Mining Group`, `Farming Group`, `Factory Group`** added to `empire-model.md` per the Group-No priority model. Composite PKs per your spec; FK into `Vessel Inventory` via `(Vessel ID, Unit Code, Tech Level)` so committed Units must exist on the vessel.
+- **Removed from `world-model.md`:** `Population Groups`, `Training Queue`, `Mines`, `Farms`, `Factories`, `Inventory`. Each section replaced by a pointer. Type Constants trimmed: `Population Group Types`, `Unit Types`, `Ship Types` removed (superseded by empire-model enum, units-model Unit catalog, and units-model Vessel Type catalog respectively). `world-model.md` now holds only pre-empire world entities plus pointers.
+- **Empire-model scope and data shape** updated to include all five new entities.
+- **Phase 1 closures in this pass:**
+  - **B1** (Population Group no ID) — composite PK `(Game ID, Vessel ID, Group Type)`.
+  - **B2** (Inventory no ID) — Inventory entity removed; `Vessel Inventory` (Sub-sweep 2) carries a composite PK.
+  - **B5** (Population / Inventory XOR) — XOR gone; both now key on Vessel ID directly.
+  - **C1** (lookup discipline) — fully closed. `Vessel Type Code` and `Unit Code` are FKs to global catalogs; `Group Type` is an inline enum. Stringly-typed `Resource Type` on old Inventory is gone.
+- **Still open:**
+  - **B8** (extractor same-planet invariant) — moved from Mine/Farm entities onto Mining/Farming Group. Still an application-level invariant (`Natural Resource.Planet ID = Vessel.Planet ID`); no declarative constraint covers it.
+  - **F2** (name uniqueness) — `Vessel.Name`, `Empire.Name`, `Player.Account` rejoin-block aside — no explicit uniqueness rules documented for entity display names.
+
+## Resolved (units hoist — Sub-sweep 2, 2026-04-16)
+
+- **`Vessel` entity** added to `empire-model.md`: fields `(ID, Game ID, Empire ID, Vessel Type Code, Name, Status, Tech Level, Planet ID, System ID, Docked At Vessel ID)`. PK `(ID)` + `UNIQUE (Game ID, ID)` parent-key shape. Composite FKs to Empire / Planet / Star System / self per A1. `Vessel Type Code` FKs to the global catalog in `units-model.md`. CHECK: exactly one location field non-null; Tech Level ∈ [0, 10].
+- **`Vessel Inventory` entity** added: PK `(Game ID, Vessel ID, Unit Code, Tech Level)`. Attributes `Quantity`, `Active`, `Cargo`, `Mass`, `Volume` reserved; semantics deferred to production-phase pass.
+- **Colonies and Ships sections removed** from `world-model.md`; replaced by a pointer to the new `Vessel` entity.
+- **Empire-model scope and data shape** updated to include Vessel and Vessel Inventory.
+- **Phase 1 closes in this pass:**
+  - **B4** (Ship `Colony ID`/`System ID` XOR) — replaced by Vessel's three-way location XOR CHECK.
+  - **E3** (colony lifecycle) — `Vessel.Status` covers both colonies and ships.
+  - **F1** (Movement Points naming) — moved to `Vessel Type.Movement Points` in `units-model.md` (baseline per class, not per instance).
+- **B6 obsolete**: "One colony per empire per planet" no longer applies — under Vessel, an empire can have many vessels on the same planet (colonies of different types plus landed ships). If "one *surface colony* per empire per planet" is still desired, that's an engine rule, not a schema constraint.
+
+Remaining cleanup of `world-model.md` (pending Sub-sweep 3): `Mines`, `Farms`, `Factories`, `Population Groups`, `Training Queue`, `Inventory` sections still reference `Colony ID` / `Ship ID` and are scheduled for removal or restructure (Mines/Farms/Factories → Unit catalog; Population + Training → hoist to `empire-model.md`; Inventory → superseded by `Vessel Inventory`).
+
+## Resolved (units hoist — Sub-sweep 1, 2026-04-16)
+
+- **Unit catalog structure** defined in `units-model.md`: `Code` (PK), `Display Name`, optional `Category`, `Source` (enum `mined`/`farmed`/`factory`). Catalog is global (no Game ID), matching the `Agent` pattern.
+- **Unit Recipe** table defined: `(Unit Code, Input Code)` PK, `Quantity` attribute. Applies only to Units with `Source = factory`.
+- **Vessel Type** catalog defined: `Code` (PK), `Display Name`, `Category` (`ship`/`colony`), `Movement Points`, `Cargo Capacity`. Global.
+- **Deposit-to-output mapping** documented in `units-model.md`: `ore → metals`, `energy → fuel`, `gold → gold`, `materials → non-metals`, `farmland → food`.
+- **Natural Resource `fuel` → `energy` rename** applied in `world-model.md`. Unit `fuel` unchanged. Mining `energy` produces `fuel`.
+- **Core concept shifts recorded** for downstream sub-sweeps:
+  - Ships and colonies will merge into a single `Vessel` entity (Sub-sweep 3).
+  - Mines/Farms/Factories are Unit catalog entries, not separate instance entities. They materialize as rows in `Vessel Inventory`.
+  - Population is *not* modeled as Units (not manufactured); `Population Group` remains a separate entity in `empire-model.md`.
+  - Tech Level (0..10, starting at 1) is a per-instance attribute on `Vessel` and `Vessel Inventory`; not a catalog field.
+
+## Resolved (systems-and-planets sweep, 2026-04-16)
+
+- **Star System `Home System` bool** added. Immutable. Constraints: `UNIQUE (Game ID, ID)`, `UNIQUE (Game ID, X, Y)` — one system per coordinate per game (no multi-star systems).
+- **Planet fields** added: `Game ID` (per A1), `Planet Type` enum (`rocky`, `gas giant`, `asteroid belt`; alpha generates only `rocky`), `LSN int` with `CHECK (0–100)`. LSN expanded to "Life Support Number" — 0 = no life support required, 100 = space-equivalent.
+- **Home World as a side table** in `world-model.md` (PK `(Game ID, Planet ID)`), not a bool on Planet. Designation is immutable after generation.
+- **Planet `Name` removed** from `world-model.md`; per-empire names moved to new `Empire Planet Name` in `empire-model.md`, mirroring `Empire System Name`.
+- **Planet Types** Type Constant added to `world-model.md`.
+- **LSN range note**: model allows `0..100` because `100` represents space-equivalent — an LSN value no planet reaches. Generation produces planet LSNs in `0..99` because rocky planets are always strictly better than vacuum. Both are intentionally correct; no reconciliation needed on this point.
+- **Phase 2 "Generation references LSN, Planet Type, Home System, Home World"** closed at the model level.
+
+## Resolved (natural-resources sweep, 2026-04-16)
+
+- **Farmland merged into Deposit**, renamed `Natural Resource`. `Resource Type` enum now includes `farmland` alongside `ore`, `fuel`, `gold`, `materials`. Many rows per planet (like deposits). Engine gates extractor type (mine vs farm) by `Resource Type`.
+- **New `Is Infinite` bool** on Natural Resource replaces the `Reserves = 0 = infinite` sentinel (closes D1). Homeworld resources use `Is Infinite = true`; the engine no longer needs a `Home World` special case during extraction.
+- **Mines and Farms** updated: `Deposit ID` / `Farmland ID` renamed to `Resource ID`, both now FK to Natural Resource. Eligibility gated by `Resource Type`.
+- **C1 partially resolved** — `Resource Type` is a declarative enum. `Population Group Type`, `Ship Type`, and `Inventory.Resource Type` remain open, pending the units hoist.
+- **C2 re-resolved** — Natural-resource `Resource Type` set is `ore`, `fuel`, `gold`, `materials`, `farmland`.
+- **Phase 2 "Farmland cardinality"** closed at the model level. Many natural-resource rows per planet, any number of which may be `farmland`.
+- **Phase 2 "Homeworld immutable deposit"** closed at the model level. `Is Infinite = true` replaces the special case.
+
+## Scope discipline
+
+Entity sweeps from here forward close Phase 1 schema issues only. Corresponding rewrites of `world-generation.md` — which still uses names like `quantity`, `yield`, `farmland count`, `farmland yield`, and carries the `Home World` immutable-deposit special case — are deferred to a later Phase 2.5 pass after the model is settled.
+
+## Phase 1 — Schema issues in `world-model.md`
+
+These are data-model problems internal to `world-model.md`, independent of generation.
+
+### A. Game scoping
+
+- **A1. [RESOLVED]** Decision: denormalize `Game ID` on every game-scoped entity. Reasoning: game is a hard tenant boundary, every query is in-game scoped, simpler tenant isolation, RLS compatibility, partitioning/archival flexibility. Composite FKs (`FOREIGN KEY (game_id, parent_id) REFERENCES parent(game_id, id)`) prevent cross-game references at the DB level. The `Agent` entity is explicitly global (no Game ID) because agents are shared across games. Details in `game-model.md` §Game ID Invariant.
+- **A2.** The `Game` entity itself is never defined in this doc. Everything references `Game ID` but there's no table for it. Either add it here or cite the doc that owns it.
+
+### B. Missing constraints and keys
+
+- **B1.** `Population Groups` has no `ID` field. Intended composite PK is presumably `(Colony ID | Ship ID, Group Type)`. Spell it out.
+- **B2.** `Inventory` has no `ID` field. Same issue — composite PK on `(Colony ID | Ship ID, Resource Type)`. Spell it out.
+- **B3.** `Empire Jump Point Knowledge` has no `ID` field. Composite PK likely `(Empire ID, Route ID, System ID)`. Spell it out.
+- **B4.** `Ships.Colony ID` / `Ships.System ID` XOR constraint ("Exactly one must be set") is prose-only. Needs a CHECK constraint note.
+- **B5.** `Population Groups` and `Inventory` have the same XOR on `Colony ID` / `Ship ID`. Same fix.
+- **B6.** "One colony per empire per planet" needs a unique constraint on `(Empire ID, Planet ID)`.
+- **B7.** Jump Route endpoint rules aren't stated: prevent self-loops (`A == B`) and prevent duplicate routes `(A,B)` / `(B,A)`. Canonical ordering (e.g., `A < B`) with a unique constraint.
+- **B8.** Mine/Farm "same planet as colony" is a cross-table invariant. Document as a validation rule; note it can't be enforced with FKs alone.
+
+### C. Lookup table / enum discipline
+
+- **C1.** `Deposits.Resource Type`, `Inventory.Resource Type`, `Population Groups.Group Type`, `Ships.Ship Type` are typed `string` but the doc says resource types live in a `units` lookup table. Decide: FK to lookup tables, or DB CHECK constraints, or PostgreSQL enums. Apply consistently.
+- **C2.** `Deposits.Resource Type` prose says "`ore` or `fuel`" only. Confirm that's the full set for deposits (farmland produces food, factories produce RSTUs, materials are seeded — so yes, ore + fuel is the full deposit set).
+
+### D. Sentinel values
+
+- **D1.** `Deposits.Reserves = 0` meaning "infinite" is a magic value. Easy to miscompute when net output is subtracted. Options: nullable `Reserves` (NULL = infinite), separate `is_infinite bool`, or keep sentinel but document the subtraction rule explicitly.
+
+### E. Missing entities
+
+- **E1.** Per-empire system naming: the doc says "Systems start unnamed. Players name their own systems; names are per-player." No table defined for that mapping. Add `Empire System Name` (Empire ID, System ID, Name) or equivalent.
+- **E2.** Game-level turn/clock: `Training Queue` uses `Start Turn` and `Completion Turn`, but no entity tracks the game's current turn. Add it here or cite where it lives.
+- **E3.** Colony lifecycle: no field or state for a destroyed/abandoned colony. Decide if colonies are deleted, soft-deleted, or carry a status field.
+
+### F. Field naming consistency
+
+- **F1.** Ship `Movement Points` field name — check against whatever the movement/orders doc uses. Don't drift.
+- **F2.** Naming uniqueness (Empire name, Ship name, Colony name) — are any of these unique per-game / per-empire? Doc is silent.
+
+## Phase 1.5 — Roles, players, and empire model
+
+Parallel to Phase 1. Application-role vocabulary lives in `project/explanation/roles-membership-and-status.md`. Game-level control vocabulary was originally framed as `membership_type`/`membership_status` but is now modeled as a single `Player` entity in `project/reference/empire-model.md`.
+
+- **G1. [RESOLVED]** `roles-membership-and-status.md` described `guest` as a stored downgrade role for disabled accounts. Current implementation: `guest` is a synthetic sentinel viewer for unauthenticated sessions. User prefers the current implementation; doc prose updated to match. No schema change.
+- **G2. [RESOLVED]** All rounds of open questions in `empire-model.md` are closed. Final shape: control lives on the `empire_control` bridge with nullable `Player ID`, nullable `Agent ID`, and a `GM Set` boolean that gates player self-service over the agent column. Empire has no status column — inactive empires are just uncontrolled and are mechanically processed for production/attrition. Agents are shared across games and immutable once created; new versions add new rows. Auto-updates never happen; only the GM changes agent assignments (and only the GM can when `GM Set = true`). Admin-driven seat transfer is disallowed in all environments. GM lifecycle uses `resigned` status with the record otherwise intact; a fresh account may be added as a new GM afterward. Vacation is an out-of-game concept documented in `project/explanation/vacation-mode.md`.
+- **G3. [RESOLVED]** The Empire entity has been hoisted to `empire-model.md` together with Player, Agent, and a new `empire_control` bridge. `world-model.md` §Empires is now a pointer. Control lives on `empire_control`, not on Empire; `Membership ID` no longer exists as a field anywhere.
+- **G4. [RESOLVED]** The controlling entity is `Player`, documented in `empire-model.md`. No separate Membership section is needed in `world-model.md`.
+- **G5.** `roles-membership-and-status.md` still contains the obsolete sections "Game Membership Types," "Membership Status," "Why `agent` Is A Status Instead of a Type," and "The Practical Language We Want." These are superseded by the Player model in `empire-model.md`. Rewrite or remove those sections; the application-role section was already fixed in G1.
+- **G6.** Control-shape shift: prior rounds of this doc assumed an "agent Player row" pattern. The final design puts control on an `empire_control` bridge with nullable `Player ID` and `Agent ID`. Vacation, resignation, and re-humanizing are all bridge-row edits; no `superseded` status was needed. Any earlier notes or scratch in this file or `empire-model.md` referencing `Controlled By` on Player, `Agent ID` on Player, or `superseded` are obsolete.
+
+## Phase 2 — Cross-document conflicts (deferred)
+
+Tracked for later; don't start until Phase 1 is resolved.
+
+- **[RESOLVED at model level]** Farmland cardinality: Farmland is now a `Resource Type` value in the Natural Resource entity; a planet has many rows including any number of farmland rows. Generation doc rewrite deferred.
+- Deposit field naming: generation's `quantity` vs model's `Reserves`; generation doesn't set `Base Extraction`. Model side is canonical; generation rewrite deferred.
+- **[RESOLVED]** Generation references `LSN`, `Planet Type`, `Home System`, `Home World` — all now on the model. The `0..100` model range vs `0..99` generation range is intentional (planets are always strictly better than vacuum) and does not require reconciliation.
+- Generation never mentions `Game ID` scoping. Pending generation rewrite pass.
+- **[RESOLVED at model level]** Homeworld immutable deposit: replaced by `Is Infinite = true` on the Natural Resource row. Generation doc rewrite deferred.
+- Units hoisting (revised): Colony, Ship, Mine, Farm, Factory, Population Group, Training Queue, and Inventory currently live in `world-model.md`. Phase 2 is a *double-destination* move: instance rows go to `empire-model.md`; type definitions (ship classes, building templates, unit-output constants, deposit-to-output mapping, factory recipes, population-type training durations) consolidate into `units-model.md`.
+
+## Phase 3 — Architecture alignment (deferred)
+
+- Neither spec is reflected in `db/schema.sql` yet. Current schema: `roles`, `users`, `user_roles`, `jwt_signing_keys` only.
+- Sprint-scoped language ("Schema only in Sprint 4", "Sprint 5/6") needs to be reconciled with current sprint plan once Phase 1/2 are stable.
