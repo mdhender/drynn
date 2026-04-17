@@ -15,6 +15,10 @@ type MailgunConfig struct {
 	FromName      string
 }
 
+func (c MailgunConfig) Configured() bool {
+	return c.APIKey != "" && c.SendingDomain != "" && c.FromAddress != ""
+}
+
 func (c MailgunConfig) from() string {
 	if c.FromName != "" {
 		return fmt.Sprintf("%s <%s>", c.FromName, c.FromAddress)

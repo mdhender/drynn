@@ -174,18 +174,30 @@ func (s *UserService) GetUser(ctx context.Context, userID uuid.UUID) (*User, err
 }
 
 func (s *UserService) ListUsers(ctx context.Context) ([]User, error) {
-	rows, err := s.queries.ListUsers(ctx)
+	rows, err := s.queries.ListUsersWithRoles(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
 
-	users := make([]User, 0, len(rows))
+	var users []User
+	seen := make(map[uuid.UUID]int)
 	for _, row := range rows {
-		user, err := s.hydrateUser(ctx, s.queries, row)
-		if err != nil {
-			return nil, err
+		idx, ok := seen[row.ID]
+		if !ok {
+			idx = len(users)
+			seen[row.ID] = idx
+			users = append(users, User{
+				ID:        row.ID,
+				Handle:    row.Handle,
+				Email:     row.Email,
+				IsActive:  row.IsActive,
+				CreatedAt: row.CreatedAt.Time,
+				UpdatedAt: row.UpdatedAt.Time,
+			})
 		}
-		users = append(users, *user)
+		if row.RoleName != "" {
+			users[idx].Roles = append(users[idx].Roles, row.RoleName)
+		}
 	}
 
 	return users, nil
@@ -374,8 +386,7 @@ func (s *UserService) DeleteUser(ctx context.Context, actorUserID, targetUserID 
 func (s *UserService) EnsureBootstrapAdmin(ctx context.Context, handle, email, password string) error {
 	handle = strings.TrimSpace(handle)
 	email = strings.TrimSpace(email)
-	password = strings.TrimSpace(password)
-	if handle == "" && email == "" && password == "" {
+	if strings.TrimSpace(password) == "" && handle == "" && email == "" {
 		return nil
 	}
 	if handle == "" || email == "" || password == "" {

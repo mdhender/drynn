@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/mdhender/drynn/internal/auth"
 	"github.com/mdhender/drynn/internal/service"
@@ -15,10 +14,11 @@ type AdminHandler struct {
 	users          *service.UserService
 	invitations    *service.InvitationService
 	passwordResets *service.PasswordResetService
+	baseURL        string
 }
 
-func NewAdminHandler(users *service.UserService, invitations *service.InvitationService, passwordResets *service.PasswordResetService) *AdminHandler {
-	return &AdminHandler{users: users, invitations: invitations, passwordResets: passwordResets}
+func NewAdminHandler(users *service.UserService, invitations *service.InvitationService, passwordResets *service.PasswordResetService, baseURL string) *AdminHandler {
+	return &AdminHandler{users: users, invitations: invitations, passwordResets: passwordResets, baseURL: baseURL}
 }
 
 func (h *AdminHandler) ListUsers(c *echo.Context) error {
@@ -153,7 +153,7 @@ func (h *AdminHandler) SendPasswordReset(c *echo.Context) error {
 		return c.String(http.StatusBadRequest, "invalid user id")
 	}
 
-	if err := h.passwordResets.SendReset(c.Request().Context(), userID, requestBaseURL(c)); err != nil {
+	if err := h.passwordResets.SendReset(c.Request().Context(), userID, h.baseURL); err != nil {
 		return c.Redirect(http.StatusSeeOther, withFlash("/app/admin/users", serviceMessage(err)))
 	}
 
@@ -198,7 +198,7 @@ func (h *AdminHandler) ListInvitations(c *echo.Context) error {
 		return c.String(http.StatusInternalServerError, "could not load invitations")
 	}
 
-	baseURL := requestBaseURL(c)
+	baseURL := h.baseURL
 	rows := make([]AdminInvitationRow, 0, len(invitations))
 	for _, inv := range invitations {
 		rows = append(rows, AdminInvitationRow{
@@ -227,7 +227,7 @@ func (h *AdminHandler) SendInvitation(c *echo.Context) error {
 
 	_, err := h.invitations.CreateAndSend(c.Request().Context(), viewer.ID, service.CreateInvitationInput{
 		Email:   email,
-		BaseURL: requestBaseURL(c),
+		BaseURL: h.baseURL,
 	})
 	if err != nil {
 		return c.Render(http.StatusUnprocessableEntity, "admin/invite-form", AdminInviteFormViewData{
@@ -246,7 +246,7 @@ func (h *AdminHandler) ResendInvitation(c *echo.Context) error {
 		return c.String(http.StatusBadRequest, "invalid invitation id")
 	}
 
-	if err := h.invitations.ResendInvitation(c.Request().Context(), id, requestBaseURL(c)); err != nil {
+	if err := h.invitations.ResendInvitation(c.Request().Context(), id, h.baseURL); err != nil {
 		return c.Redirect(http.StatusSeeOther, withFlash("/app/admin/invitations", serviceMessage(err)))
 	}
 
@@ -264,36 +264,6 @@ func (h *AdminHandler) ArchiveInvitation(c *echo.Context) error {
 	}
 
 	return c.Redirect(http.StatusSeeOther, withFlash("/app/admin/invitations", "Invitation archived."))
-}
-
-func requestBaseURL(c *echo.Context) string {
-	r := c.Request()
-
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
-	}
-	if forwarded := firstHeaderValue(r.Header.Get("X-Forwarded-Proto")); forwarded != "" {
-		scheme = forwarded
-	}
-
-	host := r.Host
-	if forwarded := firstHeaderValue(r.Header.Get("X-Forwarded-Host")); forwarded != "" {
-		host = forwarded
-	}
-
-	return scheme + "://" + host
-}
-
-func firstHeaderValue(value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return ""
-	}
-	if i := strings.Index(value, ","); i >= 0 {
-		value = value[:i]
-	}
-	return strings.TrimSpace(value)
 }
 
 var invitationFilterOptions = []InvitationFilterOption{

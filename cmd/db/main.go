@@ -15,6 +15,7 @@ import (
 	drynn "github.com/mdhender/drynn"
 	"github.com/mdhender/drynn/internal/auth"
 	"github.com/mdhender/drynn/internal/config"
+	"github.com/mdhender/drynn/internal/email"
 	"github.com/mdhender/drynn/internal/service"
 
 	"github.com/google/uuid"
@@ -29,6 +30,15 @@ const (
 func main() {
 	log.SetFlags(0)
 
+	env := os.Getenv("DRYNN_ENV")
+	if env == "" { // force a default to development
+		env = "development"
+	}
+	err := config.LoadDotfiles(env)
+	if err != nil {
+		log.Fatalf("dotenv: %v\n", err)
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -37,7 +47,6 @@ func main() {
 		os.Exit(2)
 	}
 
-	var err error
 	switch os.Args[1] {
 	case "init-config":
 		err = runInitConfig(os.Args[2:])
@@ -99,7 +108,7 @@ func runInitConfig(args []string) error {
 		JWTAccessTTL:  *accessTTL,
 		JWTRefreshTTL: *refreshTTL,
 		CookieSecure:  *cookieSecure,
-		Mailgun: config.MailgunConfig{
+		Mailgun: email.MailgunConfig{
 			APIKey:        *mailgunAPIKey,
 			SendingDomain: *mailgunDomain,
 			FromAddress:   *mailgunFromAddr,

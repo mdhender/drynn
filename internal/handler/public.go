@@ -14,6 +14,6 @@ func NewPublicHandler() *PublicHandler {
 
 func (h *PublicHandler) ShowHome(c *echo.Context) error {
 	return c.Render(http.StatusOK, "public/home", HomeViewData{
-		BaseViewData: baseView(c, "Hobo"),
+		BaseViewData: baseView(c, "Drynn"),
 	})
 }

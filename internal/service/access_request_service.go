@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
-	"html"
+	"html/template"
 	"strings"
 
 	"github.com/mdhender/drynn/internal/email"
@@ -30,7 +30,7 @@ func (s *AccessRequestService) Send(ctx context.Context, input AccessRequestInpu
 	if s.adminEmail == "" {
 		return ErrAccessRequestsDisabled
 	}
-	if !mailgunConfigured(s.mailgun) {
+	if !s.mailgun.Configured() {
 		return ErrMailgunNotConfigured
 	}
 
@@ -45,7 +45,10 @@ func (s *AccessRequestService) Send(ctx context.Context, input AccessRequestInpu
 	}
 
 	subject := fmt.Sprintf("Access request from %s", normalizedEmail)
-	body := buildAccessRequestBody(normalizedEmail, reason, strings.TrimSpace(input.IP))
+	body, err := buildAccessRequestBody(normalizedEmail, reason, strings.TrimSpace(input.IP))
+	if err != nil {
+		return fmt.Errorf("render access request email: %w", err)
+	}
 
 	if err := email.Send(ctx, s.mailgun, s.adminEmail, subject, body); err != nil {
 		return fmt.Errorf("send access request email: %w", err)
@@ -54,17 +57,17 @@ func (s *AccessRequestService) Send(ctx context.Context, input AccessRequestInpu
 	return nil
 }
 
-func buildAccessRequestBody(email, reason, ip string) string {
-	var b strings.Builder
-	b.WriteString("<p>A visitor has requested access to Hobo.</p>")
-	fmt.Fprintf(&b, "<p><strong>Email:</strong> %s</p>", html.EscapeString(email))
-	if ip != "" {
-		fmt.Fprintf(&b, "<p><strong>Client IP:</strong> %s</p>", html.EscapeString(ip))
-	}
-	if reason != "" {
-		b.WriteString("<p><strong>Reason:</strong></p>")
-		fmt.Fprintf(&b, "<p>%s</p>", strings.ReplaceAll(html.EscapeString(reason), "\n", "<br>"))
-	}
-	b.WriteString("<p>Review the request and, if appropriate, send an invitation from the admin console.</p>")
-	return b.String()
+func buildAccessRequestBody(addr, reason, ip string) (string, error) {
+	reasonHTML := template.HTML(strings.ReplaceAll(template.HTMLEscapeString(reason), "\n", "<br>"))
+	return email.RenderTemplate("access_request.gohtml", struct {
+		Email      string
+		IP         string
+		Reason     string
+		ReasonHTML template.HTML
+	}{
+		Email:      addr,
+		IP:         ip,
+		Reason:     reason,
+		ReasonHTML: reasonHTML,
+	})
 }

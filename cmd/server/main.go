@@ -20,6 +20,15 @@ func main() {
 		return
 	}
 
+	env := os.Getenv("DRYNN_ENV")
+	if env == "" { // force a default to development
+		env = "development"
+	}
+	err := config.LoadDotfiles(env)
+	if err != nil {
+		log.Fatalf("dotenv: %v\n", err)
+	}
+
 	configPath := flag.String("config", config.DefaultPath(), "path to the server config file")
 	flag.Parse()
 

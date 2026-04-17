@@ -19,6 +19,15 @@ import (
 func main() {
 	log.SetFlags(0)
 
+	env := os.Getenv("DRYNN_ENV")
+	if env == "" { // force a default to development
+		env = "development"
+	}
+	err := config.LoadDotfiles(env)
+	if err != nil {
+		log.Fatalf("dotenv: %v\n", err)
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -27,7 +36,6 @@ func main() {
 		os.Exit(2)
 	}
 
-	var err error
 	switch os.Args[1] {
 	case "send":
 		err = runSend(ctx, os.Args[2:])
@@ -95,14 +103,7 @@ func runSend(ctx context.Context, args []string) error {
 		return fmt.Errorf("mailgun is not configured in %s", cfg.ConfigPath)
 	}
 
-	mailgunCfg := email.MailgunConfig{
-		APIKey:        cfg.Mailgun.APIKey,
-		SendingDomain: cfg.Mailgun.SendingDomain,
-		FromAddress:   cfg.Mailgun.FromAddress,
-		FromName:      cfg.Mailgun.FromName,
-	}
-
-	if err := email.Send(ctx, mailgunCfg, *to, *subject, htmlBody); err != nil {
+	if err := email.Send(ctx, cfg.Mailgun, *to, *subject, htmlBody); err != nil {
 		return fmt.Errorf("send email: %w", err)
 	}
 

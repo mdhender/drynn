@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	accessCookieName  = "hobo_access"
-	refreshCookieName = "hobo_refresh"
+	accessCookieName  = "drynn_access"
+	refreshCookieName = "drynn_refresh"
 
 	TokenTypeAccess  = "access"
 	TokenTypeRefresh = "refresh"
@@ -23,6 +23,11 @@ const (
 type Claims struct {
 	TokenType string `json:"token_type"`
 	jwt.RegisteredClaims
+}
+
+// UserID parses the Subject claim as a UUID.
+func (c *Claims) UserID() (uuid.UUID, error) {
+	return uuid.Parse(c.Subject)
 }
 
 type TokenPair struct {
@@ -82,12 +87,12 @@ func (m *Manager) IssueTokens(ctx context.Context, userID uuid.UUID) (TokenPair,
 	accessExpiry := now.Add(m.accessTTL)
 	refreshExpiry := now.Add(m.refreshTTL)
 
-	accessToken, err := m.signToken(ctx, userID, TokenTypeAccess, accessExpiry)
+	accessToken, err := m.signToken(ctx, userID, TokenTypeAccess, now, accessExpiry)
 	if err != nil {
 		return TokenPair{}, err
 	}
 
-	refreshToken, err := m.signToken(ctx, userID, TokenTypeRefresh, refreshExpiry)
+	refreshToken, err := m.signToken(ctx, userID, TokenTypeRefresh, now, refreshExpiry)
 	if err != nil {
 		return TokenPair{}, err
 	}
@@ -149,13 +154,12 @@ func ClaimsFromContext(c *echo.Context) (*Claims, bool) {
 	return claims, ok
 }
 
-func (m *Manager) signToken(ctx context.Context, userID uuid.UUID, tokenType string, expiresAt time.Time) (string, error) {
+func (m *Manager) signToken(ctx context.Context, userID uuid.UUID, tokenType string, issuedAt, expiresAt time.Time) (string, error) {
 	key, err := m.keys.ActiveSigningKey(ctx, tokenType)
 	if err != nil {
 		return "", fmt.Errorf("load %s signing key: %w", tokenType, err)
 	}
 
-	issuedAt := time.Now().UTC()
 	claims := Claims{
 		TokenType: tokenType,
 		RegisteredClaims: jwt.RegisteredClaims{

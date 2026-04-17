@@ -18,7 +18,7 @@ import (
 	"github.com/mdhender/drynn/internal/auth"
 	"github.com/mdhender/drynn/internal/email"
 	"github.com/mdhender/drynn/internal/handler"
-	hobomiddleware "github.com/mdhender/drynn/internal/middleware"
+	drynnmiddleware "github.com/mdhender/drynn/internal/middleware"
 	"github.com/mdhender/drynn/internal/service"
 	"github.com/mdhender/drynn/internal/testdb"
 	"github.com/mdhender/drynn/internal/testfixtures"
@@ -90,12 +90,12 @@ func newTestServer(t testing.TB) *testServer {
 	e.Renderer = rec
 
 	publicH := handler.NewPublicHandler()
-	authH := handler.NewAuthHandler(userSvc, invSvc, pwdSvc, accessSvc, jwtMgr, false)
+	authH := handler.NewAuthHandler(userSvc, invSvc, pwdSvc, accessSvc, jwtMgr, false, "http://localhost:8080")
 	appH := handler.NewAppHandler(userSvc)
-	adminH := handler.NewAdminHandler(userSvc, invSvc, pwdSvc)
+	adminH := handler.NewAdminHandler(userSvc, invSvc, pwdSvc, "http://localhost:8080")
 	healthH := handler.NewHealthHandler(pool)
 
-	rl := hobomiddleware.NewRateLimiter(hobomiddleware.DefaultAuthRate, hobomiddleware.DefaultAuthBurst)
+	rl := drynnmiddleware.NewRateLimiter(drynnmiddleware.DefaultAuthRate, drynnmiddleware.DefaultAuthBurst)
 	registerRoutes(e, publicH, authH, appH, adminH, healthH, jwtMgr, userSvc, rl)
 
 	return &testServer{

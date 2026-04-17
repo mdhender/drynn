@@ -111,20 +111,17 @@ func (s *InvitationService) ArchiveInvitation(ctx context.Context, id uuid.UUID)
 }
 
 func (s *InvitationService) sendInvitationEmail(ctx context.Context, to, code, baseURL string) error {
-	if !mailgunConfigured(s.mailgun) {
+	if !s.mailgun.Configured() {
 		return ErrMailgunNotConfigured
 	}
 
 	link := strings.TrimRight(baseURL, "/") + "/register?code=" + code
-	body := fmt.Sprintf(
-		`<p>You've been invited to join Hobo.</p>`+
-			`<p>Click the link below to create your account. This invitation expires in 7 days.</p>`+
-			`<p><a href="%s">%s</a></p>`+
-			`<p>If you didn't expect this invitation, you can ignore this email.</p>`,
-		link, link,
-	)
+	body, err := email.RenderTemplate("invitation.gohtml", struct{ Link string }{Link: link})
+	if err != nil {
+		return fmt.Errorf("render invitation email: %w", err)
+	}
 
-	if err := email.Send(ctx, s.mailgun, to, "You're invited to Hobo", body); err != nil {
+	if err := email.Send(ctx, s.mailgun, to, "You're invited to Drynn", body); err != nil {
 		return fmt.Errorf("send invitation email: %w", err)
 	}
 
@@ -145,25 +142,18 @@ func (s *InvitationService) ListInvitations(ctx context.Context, filter string) 
 
 	invitations := make([]Invitation, 0, len(rows))
 	for _, row := range rows {
-		inv := Invitation{
-			ID:              row.ID,
-			Email:           row.Email,
-			Code:            row.Code,
-			InvitedBy:       row.InvitedBy,
-			InvitedByHandle: row.InvitedByHandle,
-			ExpiresAt:       row.ExpiresAt.Time,
-			CreatedAt:       row.CreatedAt.Time,
-		}
-		if row.UsedBy.Valid {
-			id := uuid.UUID(row.UsedBy.Bytes)
-			inv.UsedBy = &id
-		}
-		if row.UsedAt.Valid {
-			t := row.UsedAt.Time
-			inv.UsedAt = &t
-		}
-
-		invitations = append(invitations, inv)
+		inv := mapInvitationRow(sqlc.Invitation{
+			ID:         row.ID,
+			Email:      row.Email,
+			Code:       row.Code,
+			InvitedBy:  row.InvitedBy,
+			UsedBy:     row.UsedBy,
+			UsedAt:     row.UsedAt,
+			ExpiresAt:  row.ExpiresAt,
+			ArchivedAt: row.ArchivedAt,
+			CreatedAt:  row.CreatedAt,
+		}, row.InvitedByHandle)
+		invitations = append(invitations, *inv)
 	}
 
 	return invitations, nil

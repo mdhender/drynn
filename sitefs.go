@@ -4,6 +4,7 @@ package drynn
 
 import (
 	"embed"
+	"fmt"
 	"io/fs"
 )
 
@@ -11,6 +12,9 @@ import (
 var sitePublic embed.FS
 
 func SiteFS() fs.FS {
-	sub, _ := fs.Sub(sitePublic, "web/sitepublic")
+	sub, err := fs.Sub(sitePublic, "web/sitepublic")
+	if err != nil {
+		panic(fmt.Sprintf("sitefs: embedded sub-filesystem: %v", err))
+	}
 	return sub
 }

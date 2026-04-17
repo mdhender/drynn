@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const addRoleToUser = `-- name: AddRoleToUser :exec
@@ -249,21 +250,35 @@ func (q *Queries) ListRoles(ctx context.Context) ([]Role, error) {
 	return items, nil
 }
 
-const listUsers = `-- name: ListUsers :many
-SELECT id, handle, email, password_hash, is_active, created_at, updated_at
-FROM users
-ORDER BY created_at DESC
+const listUsersWithRoles = `-- name: ListUsersWithRoles :many
+SELECT u.id, u.handle, u.email, u.password_hash, u.is_active, u.created_at, u.updated_at,
+       COALESCE(r.name, '') AS role_name
+FROM users u
+LEFT JOIN user_roles ur ON ur.user_id = u.id
+LEFT JOIN roles r ON r.id = ur.role_id
+ORDER BY u.created_at DESC, r.name
 `
 
-func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
-	rows, err := q.db.Query(ctx, listUsers)
+type ListUsersWithRolesRow struct {
+	ID           uuid.UUID
+	Handle       string
+	Email        string
+	PasswordHash string
+	IsActive     bool
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	RoleName     string
+}
+
+func (q *Queries) ListUsersWithRoles(ctx context.Context) ([]ListUsersWithRolesRow, error) {
+	rows, err := q.db.Query(ctx, listUsersWithRoles)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []User
+	var items []ListUsersWithRolesRow
 	for rows.Next() {
-		var i User
+		var i ListUsersWithRolesRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Handle,
@@ -272,6 +287,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.RoleName,
 		); err != nil {
 			return nil, err
 		}

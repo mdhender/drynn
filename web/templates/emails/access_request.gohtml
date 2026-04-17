@@ -1,0 +1,10 @@
+<p>A visitor has requested access to Drynn.</p>
+<p><strong>Email:</strong> {{.Email}}</p>
+{{- if .IP}}
+<p><strong>Client IP:</strong> {{.IP}}</p>
+{{- end}}
+{{- if .Reason}}
+<p><strong>Reason:</strong></p>
+<p>{{.ReasonHTML}}</p>
+{{- end}}
+<p>Review the request and, if appropriate, send an invitation from the admin console.</p>

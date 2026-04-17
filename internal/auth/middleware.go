@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 )
 
@@ -70,7 +69,7 @@ func tryRefreshAccess(c *echo.Context, manager *Manager) (*Claims, bool) {
 		return nil, false
 	}
 
-	userID, err := uuid.Parse(refreshClaims.Subject)
+	userID, err := refreshClaims.UserID()
 	if err != nil {
 		logger.Warn("refresh access: invalid subject uuid", "path", path, "subject", refreshClaims.Subject, "error", err)
 		return nil, false

@@ -10,11 +10,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/mdhender/drynn/internal/email"
 )
 
 const (
 	configVersion = 1
-	configPathEnv = "HOBO_CONFIG_PATH"
+	configPathEnv = "DRYNN_CONFIG_PATH"
 )
 
 type Config struct {
@@ -25,20 +27,10 @@ type Config struct {
 	JWTAccessTTL         time.Duration
 	JWTRefreshTTL        time.Duration
 	CookieSecure         bool
-	Mailgun              MailgunConfig
+	BaseURL              string
+	Mailgun              email.MailgunConfig
 	RequestAccessEnabled bool
 	AdminContactEmail    string
-}
-
-type MailgunConfig struct {
-	APIKey        string
-	SendingDomain string
-	FromAddress   string
-	FromName      string
-}
-
-func (m MailgunConfig) Configured() bool {
-	return m.APIKey != "" && m.SendingDomain != "" && m.FromAddress != ""
 }
 
 type InitOptions struct {
@@ -48,7 +40,8 @@ type InitOptions struct {
 	JWTAccessTTL         time.Duration
 	JWTRefreshTTL        time.Duration
 	CookieSecure         bool
-	Mailgun              MailgunConfig
+	BaseURL              string
+	Mailgun              email.MailgunConfig
 	RequestAccessEnabled bool
 	AdminContactEmail    string
 	Force                bool
@@ -62,6 +55,7 @@ type fileConfig struct {
 	JWTAccessTTL         string            `json:"jwt_access_ttl"`
 	JWTRefreshTTL        string            `json:"jwt_refresh_ttl"`
 	CookieSecure         bool              `json:"cookie_secure"`
+	BaseURL              string            `json:"base_url"`
 	Mailgun              fileMailgunConfig `json:"mailgun"`
 	RequestAccessEnabled bool              `json:"request_access_enabled"`
 	AdminContactEmail    string            `json:"admin_contact_email"`
@@ -102,6 +96,7 @@ func LoadPath(path string) (Config, error) {
 		JWTAccessTTL:  15 * time.Minute,
 		JWTRefreshTTL: 7 * 24 * time.Hour,
 		CookieSecure:  false,
+		BaseURL:       "http://drynn.test:8989",
 	}
 
 	if err := mergeFileConfig(&cfg, path); err != nil {
@@ -135,6 +130,7 @@ func WritePath(path string, options InitOptions) (Config, error) {
 		JWTAccessTTL:  defaultDuration(options.JWTAccessTTL, 15*time.Minute).String(),
 		JWTRefreshTTL: defaultDuration(options.JWTRefreshTTL, 7*24*time.Hour).String(),
 		CookieSecure:  options.CookieSecure,
+		BaseURL:       defaultString(options.BaseURL, "http://drynn.test:8989"),
 		Mailgun: fileMailgunConfig{
 			APIKey:        strings.TrimSpace(options.Mailgun.APIKey),
 			SendingDomain: strings.TrimSpace(options.Mailgun.SendingDomain),
@@ -229,6 +225,9 @@ func mergeFileConfig(cfg *Config, path string) error {
 		cfg.JWTRefreshTTL = duration
 	}
 	cfg.CookieSecure = fileCfg.CookieSecure
+	if fileCfg.BaseURL != "" {
+		cfg.BaseURL = fileCfg.BaseURL
+	}
 
 	if fileCfg.Mailgun.APIKey != "" {
 		cfg.Mailgun.APIKey = fileCfg.Mailgun.APIKey
@@ -252,18 +251,19 @@ func mergeFileConfig(cfg *Config, path string) error {
 }
 
 func applyEnvOverrides(cfg *Config) {
-	cfg.AppAddr = envOrDefault("APP_ADDR", cfg.AppAddr)
-	cfg.DatabaseURL = envOrDefault("DATABASE_URL", cfg.DatabaseURL)
-	cfg.DataDir = envOrDefault("DATA_DIR", cfg.DataDir)
-	cfg.JWTAccessTTL = durationOrDefault("JWT_ACCESS_TTL", cfg.JWTAccessTTL)
-	cfg.JWTRefreshTTL = durationOrDefault("JWT_REFRESH_TTL", cfg.JWTRefreshTTL)
-	cfg.CookieSecure = boolOrDefault("COOKIE_SECURE", cfg.CookieSecure)
-	cfg.Mailgun.APIKey = envOrDefault("MAILGUN_API_KEY", cfg.Mailgun.APIKey)
-	cfg.Mailgun.SendingDomain = envOrDefault("MAILGUN_SENDING_DOMAIN", cfg.Mailgun.SendingDomain)
-	cfg.Mailgun.FromAddress = envOrDefault("MAILGUN_FROM_ADDRESS", cfg.Mailgun.FromAddress)
-	cfg.Mailgun.FromName = envOrDefault("MAILGUN_FROM_NAME", cfg.Mailgun.FromName)
-	cfg.RequestAccessEnabled = boolOrDefault("REQUEST_ACCESS_ENABLED", cfg.RequestAccessEnabled)
-	cfg.AdminContactEmail = envOrDefault("ADMIN_CONTACT_EMAIL", cfg.AdminContactEmail)
+	cfg.AppAddr = envOrDefault("DRYNN_APP_ADDR", cfg.AppAddr)
+	cfg.DatabaseURL = envOrDefault("DRYNN_DATABASE_URL", cfg.DatabaseURL)
+	cfg.DataDir = envOrDefault("DRYNN_DATA_DIR", cfg.DataDir)
+	cfg.JWTAccessTTL = durationOrDefault("DRYNN_JWT_ACCESS_TTL", cfg.JWTAccessTTL)
+	cfg.JWTRefreshTTL = durationOrDefault("DRYNN_JWT_REFRESH_TTL", cfg.JWTRefreshTTL)
+	cfg.CookieSecure = boolOrDefault("DRYNN_COOKIE_SECURE", cfg.CookieSecure)
+	cfg.BaseURL = envOrDefault("DRYNN_BASE_URL", cfg.BaseURL)
+	cfg.Mailgun.APIKey = envOrDefault("DRYNN_MAILGUN_API_KEY", cfg.Mailgun.APIKey)
+	cfg.Mailgun.SendingDomain = envOrDefault("DRYNN_MAILGUN_SENDING_DOMAIN", cfg.Mailgun.SendingDomain)
+	cfg.Mailgun.FromAddress = envOrDefault("DRYNN_MAILGUN_FROM_ADDRESS", cfg.Mailgun.FromAddress)
+	cfg.Mailgun.FromName = envOrDefault("DRYNN_MAILGUN_FROM_NAME", cfg.Mailgun.FromName)
+	cfg.RequestAccessEnabled = boolOrDefault("DRYNN_REQUEST_ACCESS_ENABLED", cfg.RequestAccessEnabled)
+	cfg.AdminContactEmail = envOrDefault("DRYNN_ADMIN_CONTACT_EMAIL", cfg.AdminContactEmail)
 }
 
 func envOrDefault(key, fallback string) string {

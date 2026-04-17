@@ -20,6 +20,7 @@ type AuthHandler struct {
 	accessRequests       *service.AccessRequestService
 	jwtManager           *auth.Manager
 	requestAccessEnabled bool
+	baseURL              string
 }
 
 func NewAuthHandler(
@@ -29,6 +30,7 @@ func NewAuthHandler(
 	accessRequests *service.AccessRequestService,
 	jwtManager *auth.Manager,
 	requestAccessEnabled bool,
+	baseURL string,
 ) *AuthHandler {
 	return &AuthHandler{
 		users:                users,
@@ -37,6 +39,7 @@ func NewAuthHandler(
 		accessRequests:       accessRequests,
 		jwtManager:           jwtManager,
 		requestAccessEnabled: requestAccessEnabled,
+		baseURL:              baseURL,
 	}
 }
 
@@ -217,7 +220,7 @@ func (h *AuthHandler) ShowForgotPassword(c *echo.Context) error {
 func (h *AuthHandler) ForgotPassword(c *echo.Context) error {
 	email := c.FormValue("email")
 
-	if err := h.passwordResets.SendResetByEmail(c.Request().Context(), email, requestBaseURL(c)); err != nil {
+	if err := h.passwordResets.SendResetByEmail(c.Request().Context(), email, h.baseURL); err != nil {
 		slog.Default().Error("forgot-password: send reset failed", "error", err)
 	}
 
@@ -272,7 +275,7 @@ func (h *AuthHandler) Refresh(c *echo.Context) error {
 		return c.Redirect(http.StatusSeeOther, "/signin")
 	}
 
-	userID, err := uuid.Parse(claims.Subject)
+	userID, err := claims.UserID()
 	if err != nil {
 		h.jwtManager.ClearAuthCookies(c)
 		return c.Redirect(http.StatusSeeOther, "/signin")

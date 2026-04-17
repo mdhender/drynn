@@ -10,12 +10,10 @@ import (
 	drynn "github.com/mdhender/drynn"
 	"github.com/mdhender/drynn/internal/auth"
 	"github.com/mdhender/drynn/internal/config"
-	"github.com/mdhender/drynn/internal/email"
 	"github.com/mdhender/drynn/internal/handler"
-	hobomiddleware "github.com/mdhender/drynn/internal/middleware"
+	drynnmiddleware "github.com/mdhender/drynn/internal/middleware"
 	"github.com/mdhender/drynn/internal/service"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
@@ -37,17 +35,10 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, fmt.Errorf("ping database: %w", err)
 	}
 
-	mailgunCfg := email.MailgunConfig{
-		APIKey:        cfg.Mailgun.APIKey,
-		SendingDomain: cfg.Mailgun.SendingDomain,
-		FromAddress:   cfg.Mailgun.FromAddress,
-		FromName:      cfg.Mailgun.FromName,
-	}
-
 	userService := service.NewUserService(db)
-	invitationService := service.NewInvitationService(db, mailgunCfg)
-	passwordResetService := service.NewPasswordResetService(db, mailgunCfg)
-	accessRequestService := service.NewAccessRequestService(mailgunCfg, cfg.AdminContactEmail)
+	invitationService := service.NewInvitationService(db, cfg.Mailgun)
+	passwordResetService := service.NewPasswordResetService(db, cfg.Mailgun)
+	accessRequestService := service.NewAccessRequestService(cfg.Mailgun, cfg.AdminContactEmail)
 	keyStore := auth.NewKeyStore(db)
 	if err := keyStore.EnsureReady(ctx); err != nil {
 		return nil, fmt.Errorf("jwt signing keys: %w", err)
@@ -67,14 +58,20 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 
 	e := echo.New()
 	e.Renderer = renderer
-	e.Use(skipPaths(hobomiddleware.RequestLogger(), "/healthz", "/readyz"))
+	e.Use(skipPaths(drynnmiddleware.RequestLogger(), "/healthz", "/readyz"))
 	e.Use(middleware.Recover())
-	e.Use(hobomiddleware.FetchMetadata())
+	e.Use(drynnmiddleware.FetchMetadata())
 	e.Static("/static", "web/static")
 
 	siteFS := drynn.SiteFS()
-	docsFS, _ := fs.Sub(siteFS, "docs")
-	blogFS, _ := fs.Sub(siteFS, "blog")
+	docsFS, err := fs.Sub(siteFS, "docs")
+	if err != nil {
+		return nil, fmt.Errorf("docs sub-filesystem: %w", err)
+	}
+	blogFS, err := fs.Sub(siteFS, "blog")
+	if err != nil {
+		return nil, fmt.Errorf("blog sub-filesystem: %w", err)
+	}
 	e.StaticFS("/docs", docsFS)
 	e.StaticFS("/blog", blogFS)
 
@@ -86,12 +83,13 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		accessRequestService,
 		jwtManager,
 		cfg.RequestAccessEnabled && cfg.AdminContactEmail != "",
+		cfg.BaseURL,
 	)
 	appHandler := handler.NewAppHandler(userService)
-	adminHandler := handler.NewAdminHandler(userService, invitationService, passwordResetService)
+	adminHandler := handler.NewAdminHandler(userService, invitationService, passwordResetService, cfg.BaseURL)
 	healthHandler := handler.NewHealthHandler(db)
 
-	authRateLimiter := hobomiddleware.NewRateLimiter(hobomiddleware.DefaultAuthRate, hobomiddleware.DefaultAuthBurst)
+	authRateLimiter := drynnmiddleware.NewRateLimiter(drynnmiddleware.DefaultAuthRate, drynnmiddleware.DefaultAuthBurst)
 
 	registerRoutes(e, publicHandler, authHandler, appHandler, adminHandler, healthHandler, jwtManager, userService, authRateLimiter)
 
@@ -120,7 +118,7 @@ func registerRoutes(
 	healthHandler *handler.HealthHandler,
 	jwtManager *auth.Manager,
 	userService *service.UserService,
-	authRateLimiter *hobomiddleware.RateLimiter,
+	authRateLimiter *drynnmiddleware.RateLimiter,
 ) {
 	authRL := authRateLimiter.Middleware()
 
@@ -176,7 +174,7 @@ func loadCurrentViewer(userService *service.UserService) echo.MiddlewareFunc {
 				return c.Redirect(http.StatusSeeOther, "/signin")
 			}
 
-			userID, err := uuid.Parse(claims.Subject)
+			userID, err := claims.UserID()
 			if err != nil {
 				return c.Redirect(http.StatusSeeOther, "/signin")
 			}

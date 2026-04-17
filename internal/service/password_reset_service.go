@@ -81,20 +81,17 @@ func (s *PasswordResetService) issueReset(ctx context.Context, userID uuid.UUID,
 }
 
 func (s *PasswordResetService) sendResetEmail(ctx context.Context, to, code, baseURL string) error {
-	if !mailgunConfigured(s.mailgun) {
+	if !s.mailgun.Configured() {
 		return ErrMailgunNotConfigured
 	}
 
 	link := strings.TrimRight(baseURL, "/") + "/reset-password?code=" + code
-	body := fmt.Sprintf(
-		`<p>A password reset was requested for your Hobo account.</p>`+
-			`<p>Click the link below to choose a new password. This link expires in 30 minutes and can only be used once.</p>`+
-			`<p><a href="%s">%s</a></p>`+
-			`<p>If you didn't request this, you can ignore this email.</p>`,
-		link, link,
-	)
+	body, err := email.RenderTemplate("password_reset.gohtml", struct{ Link string }{Link: link})
+	if err != nil {
+		return fmt.Errorf("render password reset email: %w", err)
+	}
 
-	if err := email.Send(ctx, s.mailgun, to, "Reset your Hobo password", body); err != nil {
+	if err := email.Send(ctx, s.mailgun, to, "Reset your Drynn password", body); err != nil {
 		return fmt.Errorf("send password reset email: %w", err)
 	}
 

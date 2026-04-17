@@ -22,11 +22,6 @@ SELECT *
 FROM users
 WHERE id = $1;
 
--- name: ListUsers :many
-SELECT *
-FROM users
-ORDER BY created_at DESC;
-
 -- name: GetUserForAuthByEmail :one
 SELECT *
 FROM users u
@@ -81,6 +76,14 @@ SELECT $1, r.id
 FROM roles r
 WHERE r.name = $2
 ON CONFLICT (user_id, role_id) DO NOTHING;
+
+-- name: ListUsersWithRoles :many
+SELECT u.id, u.handle, u.email, u.password_hash, u.is_active, u.created_at, u.updated_at,
+       COALESCE(r.name, '') AS role_name
+FROM users u
+LEFT JOIN user_roles ur ON ur.user_id = u.id
+LEFT JOIN roles r ON r.id = ur.role_id
+ORDER BY u.created_at DESC, r.name;
 
 -- name: CountUsersByRole :one
 SELECT COUNT(*)
