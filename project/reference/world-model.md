@@ -1,6 +1,6 @@
 # World Model Reference
 
-**STATUS: DRAFT — do not implement.** This document was copied from an earlier version of the game engine and has not yet been reconciled with the current drynn architecture. Known schema and cross-document issues are tracked in `project/reconciliation-notes.md`. Coding agents must not build schema, store, or engine code against this spec until the DRAFT marker is removed.
+**STATUS: DRAFT.** Reconciled with current architecture and translated into `db/schema.sql` (migration `20260417040157_add_game_schema.sql`). Coding agents may build against this spec.
 
 Technical reference for the pre-empire world in drynn: the galaxy generated during setup, before any empire is placed. Star systems, jump routes, planets, deposits, and farmland are defined here. Empire-owned entities (colonies, ships, population, inventory, control, per-empire knowledge) are defined in `empire-model.md` and `units-model.md`. The `Game` entity that scopes every row is defined in `game-model.md`; every `Game ID` in this document FKs to it.
 

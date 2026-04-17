@@ -1,6 +1,6 @@
 # Units Model Reference
 
-**STATUS: DRAFT — do not implement.** This document defines the drynn type catalog (Unit, Unit Recipe, Vessel Type). It is reconciled with the current architecture but has not been stabilized against production-phase modeling; full Unit enumeration and Vessel Type attribute set are still open. Known issues are tracked in `project/reconciliation-notes.md`. Coding agents must not build schema, store, or engine code against this spec until the DRAFT marker is removed.
+**STATUS: DRAFT.** Reconciled with current architecture and translated into `db/schema.sql` (migration `20260417040157_add_game_schema.sql`). Full Unit catalog enumeration, full Vessel Type attribute set, factory operational overhead, and recipe tech-level scaling remain open — see §Open Questions — but the current entity shape is stable. Coding agents may build against the defined fields.
 
 Technical reference for the drynn type catalog: `Unit`, `Unit Recipe`, and `Vessel Type`. This document does not hold instance rows. Empire-owned instances (Vessel, Vessel Inventory, Mining/Farming/Factory Groups, Population Group, Training Queue) live in `empire-model.md`. Natural-world entities (star systems, jump routes, planets, natural resources) live in `world-model.md`. The `Game` entity lives in `game-model.md`.
 

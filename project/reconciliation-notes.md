@@ -2,6 +2,13 @@
 
 Working notes for reconciling the drynn documentation set (`world-model.md`, `empire-model.md`, `units-model.md`, `world-generation.md`, `game-model.md`) against the current architecture. The reference docs were copied from a prior game engine; this tracks what needs to change before any of them is treated as a spec.
 
+## Resolved (DRAFT-banner sweep, 2026-04-17)
+
+- `game-model.md`, `world-model.md`, `empire-model.md`, `units-model.md` banners softened from "DRAFT — do not implement" to reconciled-with-schema form. Each banner now cites the migration file and states what (if anything) remains open for that doc.
+- Dependent banners on `project/explanation/extractor-restrictions.md` and `project/explanation/roles-membership-and-status.md` updated to reflect that the surrounding model is reconciled and the schema has landed.
+- `empire-model.md` §Open Questions note updated: all prior questions are closed; the DRAFT banner now tracks engine-code completeness, not unresolved model issues.
+- Banners retained on `vacation-mode.md` (self-service flow is planned, not implemented) and on open-question docs (`units-model.md` still has production-phase questions; `name-normalization.md` is frozen for alpha).
+
 ## Resolved (Phase 3 — schema alignment, 2026-04-17)
 
 - Settled model translated into `db/schema.sql`. 23 new tables: `games`, global catalogs (`vessel_types`, `units`, `unit_recipes`), world (`star_systems`, `jump_routes`, `planets`, `home_worlds`, `natural_resources`), empire layer (`agents`, `empires`, `players`, `empire_control`), per-empire views (`empire_system_names`, `empire_planet_names`, `empire_jump_point_knowledge`), vessels (`vessels`, `vessel_inventory`), and empire instance entities (`population_groups`, `training_queue`, `mining_groups`, `farming_groups`, `factory_groups`). Migration generated via `atlas migrate diff add_game_schema --env local` at `db/migrations/20260417040157_add_game_schema.sql`. `atlas migrate lint` passes with only PG110 (column padding) warnings, which are cosmetic.

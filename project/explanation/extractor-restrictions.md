@@ -1,6 +1,6 @@
 # Extractor Restrictions
 
-**STATUS: DRAFT.** This document explains a design invariant that currently lives across several entities in `project/reference/empire-model.md`, `project/reference/world-model.md`, and `project/reference/units-model.md`. The invariant is stable; the DRAFT marker tracks the surrounding model docs, not this one. See `project/reconciliation-notes.md` for the resolved B8 entry.
+**STATUS: DRAFT.** This document explains a design invariant that spans entities in `project/reference/empire-model.md`, `project/reference/world-model.md`, and `project/reference/units-model.md`. The invariant is stable and the surrounding model is reconciled. See `project/reconciliation-notes.md` for the resolved B8 entry.
 
 This document explains the rules that govern where and how empires can extract natural resources in `drynn`, and the design reasoning behind those rules.
 

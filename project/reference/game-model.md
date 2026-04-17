@@ -1,6 +1,6 @@
 # Game Model Reference
 
-**STATUS: DRAFT — do not implement.** This document has not yet been reconciled with the current drynn architecture. Known issues are tracked in `project/reconciliation-notes.md`. Coding agents must not build schema, store, or engine code against this spec until the DRAFT marker is removed.
+**STATUS: DRAFT.** Reconciled with current architecture and translated into `db/schema.sql` (migration `20260417040157_add_game_schema.sql`). Game settings (turn cadence, generation parameters) and archival policy remain open — see §Open Questions. Coding agents may build against the defined fields.
 
 Technical reference for the `Game` entity. A game is the top-level container that every other model entity scopes to. Empires, players, star systems, planets, jump routes, and their children all carry a `Game ID` that FKs here.
 

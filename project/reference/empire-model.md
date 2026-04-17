@@ -1,6 +1,6 @@
 # Empire Model Reference
 
-**STATUS: DRAFT — do not implement.** This document has not yet been reconciled with the current drynn architecture. Known issues are tracked in `project/reconciliation-notes.md`. Coding agents must not build schema, store, or engine code against this spec until the DRAFT marker is removed.
+**STATUS: DRAFT.** Reconciled with current architecture and translated into `db/schema.sql` (migration `20260417040157_add_game_schema.sql`). All prior open questions are resolved. Coding agents may build against this spec.
 
 Technical reference for the empire side of the drynn game model: the Empire itself, the Player entity that represents a human seat in a game, the Agent entity that represents an engine strategy, and the `empire_control` bridge that records who currently operates each empire.
 
@@ -509,4 +509,4 @@ Not supported in any environment. Reassigning a seat from one account to another
 
 ## Open Questions
 
-All prior open questions have been resolved. Removal of the DRAFT marker is gated on Phase 2 / Phase 3 work tracked in `project/reconciliation-notes.md` (cross-doc conflicts and alignment with `db/schema.sql`).
+None. All prior open questions are resolved and the entities defined here are present in `db/schema.sql` (migration `20260417040157_add_game_schema.sql`). The DRAFT banner now reflects the usual "spec is stable but engine code is still catching up" caveat, not unresolved model issues.

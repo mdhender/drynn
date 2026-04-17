@@ -1,6 +1,6 @@
 # Roles and Game Participation
 
-**STATUS: DRAFT.** The `Player` model referenced here is defined in `project/reference/empire-model.md`. The application-role content reflects the current implementation; the game-participation content is forward-looking until the schema lands. See `project/reconciliation-notes.md` for status. The filename (`roles-membership-and-status.md`) is legacy from the prior engine vocabulary and is retained to avoid breaking cross-references.
+**STATUS: DRAFT.** The `Player` model referenced here is defined in `project/reference/empire-model.md` and landed in `db/schema.sql` via migration `20260417040157_add_game_schema.sql`. The application-role content reflects the current implementation; the game-participation content is forward-looking until handler and service code catches up. See `project/reconciliation-notes.md` for status. The filename (`roles-membership-and-status.md`) is legacy from the prior engine vocabulary and is retained to avoid breaking cross-references.
 
 This document explains the distinction between application roles and game participation in `drynn`.
 
