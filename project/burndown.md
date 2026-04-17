@@ -107,7 +107,7 @@ future renames cannot drift.
 
 ---
 
-### BD-5. Email templates loaded from CWD break non-repo-root deployments
+### BD-5. Email templates loaded from CWD break non-repo-root deployments [DONE]
 
 **Severity:** normal
 

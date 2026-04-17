@@ -18,3 +18,10 @@ func SiteFS() fs.FS {
 	}
 	return sub
 }
+
+//go:embed web/templates/emails/*.gohtml
+var emailTemplates embed.FS
+
+func EmailTemplateFS() fs.FS {
+	return emailTemplates
+}
