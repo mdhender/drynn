@@ -9,6 +9,95 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Agent struct {
+	ID        int64
+	Name      string
+	Version   string
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
+type Empire struct {
+	ID        int64
+	GameID    int64
+	Name      string
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
+type EmpireControl struct {
+	EmpireID  int64
+	GameID    int64
+	PlayerID  pgtype.Int8
+	AgentID   pgtype.Int8
+	GmSet     bool
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
+type EmpireJumpPointKnowledge struct {
+	GameID           int64
+	EmpireID         int64
+	RouteID          int64
+	SystemID         int64
+	Detected         bool
+	RangeBand        pgtype.Text
+	DestinationKnown bool
+	CreatedAt        pgtype.Timestamptz
+}
+
+type EmpirePlanetName struct {
+	GameID    int64
+	EmpireID  int64
+	PlanetID  int64
+	Name      string
+	CreatedAt pgtype.Timestamptz
+}
+
+type EmpireSystemName struct {
+	GameID    int64
+	EmpireID  int64
+	SystemID  int64
+	Name      string
+	CreatedAt pgtype.Timestamptz
+}
+
+type FactoryGroup struct {
+	GameID    int64
+	VesselID  int64
+	GroupNo   int32
+	UnitCode  string
+	TechLevel int32
+	Quantity  int32
+	CreatedAt pgtype.Timestamptz
+}
+
+type FarmingGroup struct {
+	GameID     int64
+	VesselID   int64
+	ResourceID int64
+	GroupNo    int32
+	UnitCode   string
+	TechLevel  int32
+	Quantity   int32
+	CreatedAt  pgtype.Timestamptz
+}
+
+type Game struct {
+	ID          int64
+	Name        string
+	Status      string
+	CurrentTurn int32
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+type HomeWorld struct {
+	GameID    int64
+	PlanetID  int64
+	CreatedAt pgtype.Timestamptz
+}
+
 type Invitation struct {
 	ID         uuid.UUID
 	Email      string
@@ -19,6 +108,16 @@ type Invitation struct {
 	ExpiresAt  pgtype.Timestamptz
 	ArchivedAt pgtype.Timestamptz
 	CreatedAt  pgtype.Timestamptz
+}
+
+type JumpRoute struct {
+	ID           int64
+	GameID       int64
+	SystemAID    int64
+	SystemBID    int64
+	Cost         int32
+	LastTurnUsed pgtype.Int4
+	CreatedAt    pgtype.Timestamptz
 }
 
 type JwtSigningKey struct {
@@ -32,6 +131,30 @@ type JwtSigningKey struct {
 	UpdatedAt   pgtype.Timestamptz
 }
 
+type MiningGroup struct {
+	GameID     int64
+	VesselID   int64
+	ResourceID int64
+	GroupNo    int32
+	UnitCode   string
+	TechLevel  int32
+	Quantity   int32
+	CreatedAt  pgtype.Timestamptz
+}
+
+type NaturalResource struct {
+	ID             int64
+	GameID         int64
+	PlanetID       int64
+	ResourceType   string
+	Capacity       int32
+	BaseExtraction int32
+	YieldPercent   int32
+	Reserves       int64
+	IsInfinite     bool
+	CreatedAt      pgtype.Timestamptz
+}
+
 type PasswordResetToken struct {
 	ID        uuid.UUID
 	UserID    uuid.UUID
@@ -41,10 +164,74 @@ type PasswordResetToken struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+type Planet struct {
+	ID         int64
+	GameID     int64
+	SystemID   int64
+	Orbit      int32
+	PlanetType string
+	Lsn        int32
+	CreatedAt  pgtype.Timestamptz
+}
+
+type Player struct {
+	ID        int64
+	GameID    int64
+	AccountID uuid.UUID
+	IsGm      bool
+	Status    string
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
+type PopulationGroup struct {
+	GameID    int64
+	VesselID  int64
+	GroupType string
+	Count     int32
+	CreatedAt pgtype.Timestamptz
+}
+
 type Role struct {
 	ID          int64
 	Name        string
 	Description string
+}
+
+type StarSystem struct {
+	ID           int64
+	GameID       int64
+	X            int32
+	Y            int32
+	IsHomeSystem bool
+	CreatedAt    pgtype.Timestamptz
+}
+
+type TrainingQueue struct {
+	ID             int64
+	GameID         int64
+	VesselID       int64
+	FromGroupType  string
+	ToGroupType    string
+	Count          int32
+	StartTurn      int32
+	CompletionTurn int32
+	CreatedAt      pgtype.Timestamptz
+}
+
+type Unit struct {
+	Code        string
+	DisplayName string
+	Category    pgtype.Text
+	Source      string
+	CreatedAt   pgtype.Timestamptz
+}
+
+type UnitRecipe struct {
+	UnitCode  string
+	InputCode string
+	Quantity  int32
+	CreatedAt pgtype.Timestamptz
 }
 
 type User struct {
@@ -61,4 +248,41 @@ type UserRole struct {
 	UserID    uuid.UUID
 	RoleID    int64
 	CreatedAt pgtype.Timestamptz
+}
+
+type Vessel struct {
+	ID               int64
+	GameID           int64
+	EmpireID         int64
+	VesselTypeCode   string
+	Name             string
+	Status           string
+	TechLevel        int32
+	PlanetID         pgtype.Int8
+	SystemID         pgtype.Int8
+	DockedAtVesselID pgtype.Int8
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+}
+
+type VesselInventory struct {
+	GameID    int64
+	VesselID  int64
+	UnitCode  string
+	TechLevel int32
+	Quantity  int32
+	Active    int32
+	Cargo     int32
+	Mass      int32
+	Volume    int32
+	CreatedAt pgtype.Timestamptz
+}
+
+type VesselType struct {
+	Code           string
+	DisplayName    string
+	Category       string
+	MovementPoints int32
+	CargoCapacity  int32
+	CreatedAt      pgtype.Timestamptz
 }

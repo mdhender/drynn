@@ -83,7 +83,7 @@ SELECT u.id, u.handle, u.email, u.password_hash, u.is_active, u.created_at, u.up
 FROM users u
 LEFT JOIN user_roles ur ON ur.user_id = u.id
 LEFT JOIN roles r ON r.id = ur.role_id
-ORDER BY u.created_at DESC, r.name;
+ORDER BY u.created_at DESC, u.id, r.name;
 
 -- name: CountUsersByRole :one
 SELECT COUNT(*)

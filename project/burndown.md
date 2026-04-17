@@ -129,7 +129,7 @@ at server startup so the crash happens before traffic is accepted.
 
 ---
 
-### BD-6. `ListUsersWithRoles` user ordering depends on role names
+### BD-6. `ListUsersWithRoles` user ordering depends on role names [DONE]
 
 **Severity:** nit
 
