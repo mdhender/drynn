@@ -64,7 +64,7 @@ CREATE TABLE "empire_control" (
   PRIMARY KEY ("empire_id"),
   CONSTRAINT "empire_control_agent_fk" FOREIGN KEY ("agent_id") REFERENCES "agents" ("id") ON UPDATE NO ACTION ON DELETE SET NULL,
   CONSTRAINT "empire_control_empire_fk" FOREIGN KEY ("game_id", "empire_id") REFERENCES "empires" ("game_id", "id") ON UPDATE NO ACTION ON DELETE CASCADE,
-  CONSTRAINT "empire_control_player_fk" FOREIGN KEY ("game_id", "player_id") REFERENCES "players" ("game_id", "id") ON UPDATE NO ACTION ON DELETE SET NULL,
+  CONSTRAINT "empire_control_player_fk" FOREIGN KEY ("game_id", "player_id") REFERENCES "players" ("game_id", "id") ON UPDATE NO ACTION ON DELETE SET NULL ("player_id"),
   CONSTRAINT "empire_control_gm_set_check" CHECK ((agent_id IS NOT NULL) OR (gm_set = false))
 );
 -- Create index "empire_control_player_id_key" to table: "empire_control"

@@ -9,7 +9,7 @@ closed.
 
 Findings from remote ultrareview of `main` (46 files, +3607/-298).
 
-### BD-1. `EnsureBootstrapAdmin` accepts whitespace-only password [INVALID]
+### BD-1. `EnsureBootstrapAdmin` accepts whitespace-only password [DONE]
 
 **Severity:** normal (invalidated on review)
 
@@ -65,7 +65,7 @@ require it at write time.
 
 ---
 
-### BD-3. `empire_control_player_fk` `ON DELETE SET NULL` violates NOT NULL
+### BD-3. `empire_control_player_fk` `ON DELETE SET NULL` violates NOT NULL [DONE]
 
 **Severity:** normal
 

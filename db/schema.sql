@@ -287,7 +287,7 @@ CREATE TABLE empire_control (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT empire_control_empire_fk FOREIGN KEY (game_id, empire_id) REFERENCES empires(game_id, id) ON DELETE CASCADE,
-    CONSTRAINT empire_control_player_fk FOREIGN KEY (game_id, player_id) REFERENCES players(game_id, id) ON DELETE SET NULL,
+    CONSTRAINT empire_control_player_fk FOREIGN KEY (game_id, player_id) REFERENCES players(game_id, id) ON DELETE SET NULL (player_id),
     CONSTRAINT empire_control_agent_fk FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE SET NULL,
     CONSTRAINT empire_control_gm_set_check CHECK (agent_id IS NOT NULL OR gm_set = FALSE)
 );
