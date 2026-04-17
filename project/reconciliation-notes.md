@@ -2,6 +2,26 @@
 
 Working notes for reconciling the drynn documentation set (`world-model.md`, `empire-model.md`, `units-model.md`, `world-generation.md`, `game-model.md`) against the current architecture. The reference docs were copied from a prior game engine; this tracks what needs to change before any of them is treated as a spec.
 
+## Resolved (F2 closure, 2026-04-16)
+
+- **F2** (name uniqueness) closed across every player-settable `Name` field:
+  - `Empire.Name` — `UNIQUE (Game ID, lower(Name))`.
+  - `Agent.Name` — `UNIQUE (lower(Name))` (global, since Agent is a global catalog).
+  - `Empire System Name.Name` — `UNIQUE (Empire ID, lower(Name))`.
+  - `Empire Planet Name.Name` — `UNIQUE (Empire ID, lower(Name))`.
+  - `Vessel.Name` — `UNIQUE (Game ID, Empire ID, lower(Name))`.
+  Every rule is case-insensitive via a functional index over `lower(Name)`. Names are stored with submitted case intact; comparison is case-insensitive in both the schema and the order processor. Normalization (character whitelist, whitespace → space, trim, collapse, non-empty) is the order processor's responsibility at input time; the schema constraint backstops it. Full spec in new document `project/reference/name-normalization.md`. Cross-table ambiguity (e.g., a Vessel and a System sharing a name within one empire) is an order-parser concern, not a schema constraint.
+- **Whitelist closed for alpha:** `[A-Za-z0-9 .\-#']` — ASCII letters, digits, space, period, hyphen-minus, number sign, apostrophe. Intentionally 1978-era ASCII. Unicode letters and typographic punctuation are rejected, not normalized. Widening the set post-alpha is feasible but not on the alpha path. Full spec in `project/reference/name-normalization.md` §Character Whitelist.
+- `Player.Account` parked: account handle uniqueness is enforced at the account layer (see CLAUDE.md handle rules); no new rule in the game-scoped model.
+
+## Resolved (B8 closure, 2026-04-16)
+
+- **B8** (extractor same-planet invariant) closed on structural grounds, not via declarative constraint. The invariant `Mining/Farming Group → Natural Resource.Planet ID = Vessel.Planet ID` holds because:
+  1. Only surface-colony Vessel Types accept "build mining group" / "build farming group" orders (engine rule).
+  2. Surface colonies are planet-bound and cannot move off-planet (engine rule).
+  3. Surface colonies must be built on the surface of a planet (engine rule).
+  Together these guarantee the Vessel associated with any Mining/Farming Group is immobile and planet-bound, so a row can never drift into a state where the planets disagree. No denormalized `Planet ID`, composite FK extension, or trigger is required. The full reasoning (game-mechanics rationale, data-model rationale, schema trade-offs, and engine-code responsibilities) is captured in `project/explanation/extractor-restrictions.md`; the Mining Group and Farming Group Notes in `empire-model.md` cite that document so the question does not get re-opened.
+
 ## Resolved (standalone-items pass, 2026-04-16)
 
 - **A2** — `Game` entity defined in new `project/reference/game-model.md` with fields `ID`, `Name`, `Status`, `Current Turn`.
@@ -48,9 +68,7 @@ Working notes for reconciling the drynn documentation set (`world-model.md`, `em
   - **B2** (Inventory no ID) — Inventory entity removed; `Vessel Inventory` (Sub-sweep 2) carries a composite PK.
   - **B5** (Population / Inventory XOR) — XOR gone; both now key on Vessel ID directly.
   - **C1** (lookup discipline) — fully closed. `Vessel Type Code` and `Unit Code` are FKs to global catalogs; `Group Type` is an inline enum. Stringly-typed `Resource Type` on old Inventory is gone.
-- **Still open:**
-  - **B8** (extractor same-planet invariant) — moved from Mine/Farm entities onto Mining/Farming Group. Still an application-level invariant (`Natural Resource.Planet ID = Vessel.Planet ID`); no declarative constraint covers it.
-  - **F2** (name uniqueness) — `Vessel.Name`, `Empire.Name`, `Player.Account` rejoin-block aside — no explicit uniqueness rules documented for entity display names.
+- **Still open:** none from Sub-sweep 3. F2 closed under the 2026-04-16 F2 pass; see top of file.
 
 ## Resolved (units hoist — Sub-sweep 2, 2026-04-16)
 
@@ -121,7 +139,7 @@ These are data-model problems internal to `world-model.md`, independent of gener
 - **B5.** `Population Groups` and `Inventory` have the same XOR on `Colony ID` / `Ship ID`. Same fix.
 - **B6.** "One colony per empire per planet" needs a unique constraint on `(Empire ID, Planet ID)`.
 - **B7.** Jump Route endpoint rules aren't stated: prevent self-loops (`A == B`) and prevent duplicate routes `(A,B)` / `(B,A)`. Canonical ordering (e.g., `A < B`) with a unique constraint.
-- **B8.** Mine/Farm "same planet as colony" is a cross-table invariant. Document as a validation rule; note it can't be enforced with FKs alone.
+- **B8. [RESOLVED]** Closed on structural grounds during the 2026-04-16 B8 pass. The invariant holds because only surface-colony Vessel Types accept mine/farm-group orders and surface colonies are immobile and planet-bound. No declarative constraint needed; see `project/explanation/extractor-restrictions.md` for the full reasoning.
 
 ### C. Lookup table / enum discipline
 
@@ -141,7 +159,7 @@ These are data-model problems internal to `world-model.md`, independent of gener
 ### F. Field naming consistency
 
 - **F1.** Ship `Movement Points` field name — check against whatever the movement/orders doc uses. Don't drift.
-- **F2.** Naming uniqueness (Empire name, Ship name, Colony name) — are any of these unique per-game / per-empire? Doc is silent.
+- **F2. [RESOLVED]** Closed during the 2026-04-16 F2 pass. Every player-settable `Name` field now carries a case-insensitive UNIQUE constraint at the appropriate scope (per-game for Empire; per-empire for Vessel, Empire System Name, Empire Planet Name; global for Agent). Normalization pipeline specified in the new `project/reference/name-normalization.md`; see top of file for full resolution entry.
 
 ## Phase 1.5 — Roles, players, and empire model
 

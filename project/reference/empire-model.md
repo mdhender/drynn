@@ -68,6 +68,11 @@ A faction in a game. Empires persist for the lifetime of a game.
 | Game ID | int64  | The game this empire belongs to |
 | Name    | string | Empire name                     |
 
+Constraints:
+
+- **PRIMARY KEY (ID)**; **UNIQUE (Game ID, ID)** — parent-key shape for composite FKs per A1.
+- **UNIQUE (Game ID, lower(Name))** — case-insensitive per-game uniqueness. Normalization pipeline specified in `name-normalization.md`.
+
 Notes:
 
 - Empire-owned assets (colonies, ships, infrastructure, inventory, jump point knowledge) FK to `Empire.ID` and are defined in `world-model.md` and `units-model.md`. Control changes on `empire_control` never move assets between empires; assets stay with the Empire row.
@@ -106,6 +111,11 @@ A shared, versioned engine strategy that can operate an empire seat.
 | ID      | int64  | Internal identifier                     |
 | Name    | string | Agent name (e.g., "Vacation Agent")     |
 | Version | string | Version tag (e.g., `v1`, `2026-04-a`)   |
+
+Constraints:
+
+- **PRIMARY KEY (ID)**.
+- **UNIQUE (lower(Name))** — case-insensitive global uniqueness. Agents are shared across games; their names must be unambiguous in admin and player-facing selection UIs. Normalization pipeline specified in `name-normalization.md`.
 
 Notes:
 
@@ -164,6 +174,7 @@ A per-empire name for a star system. Systems start unnamed; an empire may assign
 Constraints:
 
 - **PRIMARY KEY (Empire ID, System ID)** — one name per empire per system.
+- **UNIQUE (Empire ID, lower(Name))** — case-insensitive per-empire uniqueness. `Empire ID` is game-scoped, so this is implicitly per-game. Normalization pipeline specified in `name-normalization.md`.
 
 Notes:
 
@@ -184,6 +195,7 @@ A per-empire name for a planet. Planets start unnamed; an empire may assign its 
 Constraints:
 
 - **PRIMARY KEY (Empire ID, Planet ID)** — one name per empire per planet.
+- **UNIQUE (Empire ID, lower(Name))** — case-insensitive per-empire uniqueness. `Empire ID` is game-scoped, so this is implicitly per-game. Normalization pipeline specified in `name-normalization.md`.
 
 Notes:
 
@@ -244,6 +256,7 @@ Constraints:
 - **FOREIGN KEY (Game ID, Docked At Vessel ID) REFERENCES vessels(Game ID, ID)** — when `Docked At Vessel ID IS NOT NULL`.
 - **CHECK (Tech Level BETWEEN 0 AND 10)**.
 - **CHECK** exactly one of `Planet ID`, `System ID`, `Docked At Vessel ID` is non-null.
+- **UNIQUE (Game ID, Empire ID, lower(Name))** — case-insensitive per-empire uniqueness. Normalization pipeline specified in `name-normalization.md`.
 
 Notes:
 
@@ -376,7 +389,8 @@ Constraints:
 Notes:
 
 - Multiple rows sharing `(Vessel ID, Resource ID, Group No)` with different `Tech Level` represent a mixed-tech group.
-- Engine enforces: `Unit Code` is a mine-variant Unit; the referenced Natural Resource has `Resource Type != farmland`; the Natural Resource's `Planet ID` matches the Vessel's `Planet ID`.
+- Engine enforces: `Unit Code` is a mine-variant Unit; the referenced Natural Resource has `Resource Type != farmland`; the Natural Resource's `Planet ID` matches the Vessel's `Planet ID` at creation time.
+- The same-planet invariant holds structurally, not by declarative constraint. The reasoning — surface-colony Vessel Type restriction, surface-colony immobility, and mandatory planet placement at creation — is documented in `project/explanation/extractor-restrictions.md`.
 - Mines remain in `Vessel Inventory`; this table records only the active assignment. Unassigned mines stay in inventory without a group row.
 
 ## Farming Group
@@ -404,7 +418,8 @@ Constraints:
 
 Notes:
 
-- Engine enforces: `Unit Code` is a farm-variant Unit; the referenced Natural Resource has `Resource Type = farmland`; the Natural Resource's `Planet ID` matches the Vessel's `Planet ID`.
+- Engine enforces: `Unit Code` is a farm-variant Unit; the referenced Natural Resource has `Resource Type = farmland`; the Natural Resource's `Planet ID` matches the Vessel's `Planet ID` at creation time.
+- The same-planet invariant holds structurally, as with Mining Group. See `project/explanation/extractor-restrictions.md` for the reasoning.
 
 ## Factory Group
 
