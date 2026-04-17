@@ -1,10 +1,10 @@
-# Roles, Membership, and Status
+# Roles and Game Participation
 
-**STATUS: DRAFT — do not implement.** This document was copied from an earlier version of the game engine and has not yet been reconciled with the current drynn architecture. Known schema and cross-document issues are tracked in `project/reconciliation-notes.md`. Coding agents must not build schema, store, or engine code against this spec until the DRAFT marker is removed.
+**STATUS: DRAFT.** The `Player` model referenced here is defined in `project/reference/empire-model.md`. The application-role content reflects the current implementation; the game-participation content is forward-looking until the schema lands. See `project/reconciliation-notes.md` for status. The filename (`roles-membership-and-status.md`) is legacy from the prior engine vocabulary and is retained to avoid breaking cross-references.
 
-This document explains the distinction between application roles and game membership in `drynn`.
+This document explains the distinction between application roles and game participation in `drynn`.
 
-It is aimed at human developers. The goal is not to prescribe implementation steps, but to explain the language we want to use and the design reasons behind it.
+It is aimed at human developers. The goal is not to prescribe implementation steps, but to explain the language we use and the design reasons behind it.
 
 ## Why This Distinction Matters
 
@@ -13,9 +13,9 @@ It is aimed at human developers. The goal is not to prescribe implementation ste
 - access to the application as a whole
 - participation inside a specific game
 
-If we use the same word for both, the code and documentation become ambiguous very quickly. A person can be an authenticated user of the product without being a participant in any particular game. Likewise, a participant in a game can change state inside that game without changing their application-wide permissions.
+If we use the same word for both, the code and documentation become ambiguous quickly. A person can be an authenticated user of the product without being a participant in any particular game. Likewise, a participant in a game can change state inside that game without changing their application-wide permissions.
 
-That is why we want to reserve `role` for the application scope, and use `membership_type` and `membership_status` for the game scope.
+That is why we reserve `role` for the application scope, and use the `Player` entity for the game scope.
 
 ## Application Roles
 
@@ -34,71 +34,36 @@ There is also a synthetic `guest` role. It is not stored, is not assigned to any
 
 These roles belong to the account or session, not to a game.
 
-## Game Membership Types
+## Game Participation: Player
 
-Game membership answers a different question: what is this account's relationship to this particular game?
+Game participation is modeled as a `Player` entity — an account's seat in a specific game. See `project/reference/empire-model.md` for the full spec.
 
-The current membership types are:
+Key points:
 
-- `gm`
-- `player`
+- Every `Player` is backed by an `Account` and carries a `Status` (`active`, `resigned`, `eliminated`).
+- `Is GM` distinguishes a game-master seat (no empire) from a regular player seat (controls one empire).
+- A `UNIQUE (Game ID, Account ID)` constraint across all `Player` rows — active *and* terminal — means an account holds at most one seat per game across the entire lifetime of that game. This blocks rejoining after resignation and prevents an account from being both GM and regular player in the same game.
 
-`gm` is the game-level authority. It can perform nearly all game management actions, such as updating game settings, adding or removing players, running turns, generating reports, and viewing player data.
+Agent control — when the engine is operating an empire instead of a human — is **not** a status on `Player`. It lives on the `empire_control` bridge row for the empire: `Player ID`, `Agent ID`, and a `GM Set` flag together record who is currently operating the seat and how. A player's seat can be temporarily operated by an agent (vacation) without ever leaving `active` status, and a resigned player's empire can be taken over by an agent without touching the resigned row.
 
-`player` is a participant seat in the game. When we say "player" in ordinary conversation, we often mean an account with the application role `user` that has been added to a game as a player.
+## Why `Is GM` Is a Flag (Not a Separate Entity Type)
 
-That shorthand is fine in casual discussion, but in the codebase it is better to stay precise: an account has an application role, and a game membership has a membership type.
+Collapsing GM and regular player into a single `Player` entity with an `Is GM` flag keeps per-game participation uniform — same rejoin-block rule, same lifecycle transitions, same account linkage. The flag distinguishes authority without splitting the schema.
 
-## Membership Status
-
-Membership status answers another question: what is the current operating state of this membership?
-
-The current statuses are:
-
-- `human`
-- `agent`
-- `resigned`
-- `eliminated`
-
-This is separate from membership type on purpose.
-
-For example, a `player` membership can move from `human` to `agent` without ceasing to be a player membership. That is useful because we do not want to delete a player's historical participation when they leave or when the game engine has to take over control of their seat.
-
-`agent` means the engine is currently controlling the seat.
-
-`resigned` means the participant has left the game, but the membership record remains as part of the game's history and structure.
-
-`eliminated` means the participant is still part of the game's history, but is no longer active in play.
-
-In other words, membership type tells us what the seat is, while membership status tells us what condition that seat is in.
-
-## Why `agent` Is A Status Instead of a Type
-
-The most important design decision here is treating `agent` as status rather than type.
-
-If `agent` were a peer to `gm` and `player`, we would be mixing two different ideas:
-
-- authority or function within the game
-- current control mode or lifecycle state
-
-That would make it harder to reason about game history, permissions, reporting, and ownership. A seat that becomes engine-controlled is still fundamentally the same player seat. What changed is not what kind of membership it is, but how it is currently being operated.
-
-Modeling `agent` as status preserves that distinction.
+Similarly, agent control is not a status value on `Player`. If it were, transitioning a seat to and from agent control would ping-pong the player's status and mix "who holds the seat" with "who is currently operating it." Keeping control on a separate bridge row preserves that distinction cleanly: player identity and seat history stay on `Player`; current operator state lives on `empire_control`.
 
 ## Why This Helps Future Maintenance
 
-This vocabulary should make the application easier to extend.
+This vocabulary keeps the account model clear:
 
-It keeps the account model clear:
-
-- application concerns stay at the application level
-- game concerns stay at the game level
+- application concerns stay at the application level (`role`, stored in `user_roles`).
+- game-participation concerns stay at the game level (`Player`, `empire_control`).
 
 It also keeps authorization logic easier to read:
 
-- app checks can ask about `role`
-- game checks can ask about `membership_type`
-- lifecycle or control checks can ask about `membership_status`
+- app checks ask about `role`.
+- game-level permission checks ask about `Is GM` and `Status` on the relevant `Player`.
+- control checks (who submits orders this turn, who can clear an agent) ask about `empire_control`.
 
 That separation should reduce both schema churn and policy confusion as the server, CLI services, and eventually the game engine grow more capable.
 
@@ -106,13 +71,8 @@ That separation should reduce both schema churn and policy confusion as the serv
 
 Going forward, the preferred terms are:
 
-- `role` for application-wide authorization
-- `membership_type` for game participation kind
-- `membership_status` for current game-participation state
+- `role` for application-wide authorization (`admin`, `user`; plus the synthetic `guest` sentinel).
+- `Player` for an account's per-game seat.
+- `empire_control` for who currently operates a given empire.
 
-When we say "player" in code or documentation, we should be careful about which meaning we intend:
-
-- a product user with role `user`
-- a game membership with type `player`
-
-Both usages are understandable in context, but the second is the one that matters for schema and service design.
+When we say "player" in casual conversation, we usually mean "an account with role `user` that has a `Player` row in some game." That shorthand is fine in discussion; in code and documentation, prefer the precise form.

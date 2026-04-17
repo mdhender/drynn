@@ -1,0 +1,78 @@
+// https://dbdiagram.io/d
+// Generated from db/schema.sql
+
+Table roles {
+  id bigserial [pk]
+  name text [not null, unique]
+  description text [not null, default: '']
+}
+
+Table users {
+  id uuid [pk, default: `gen_random_uuid()`]
+  handle text [not null, unique, note: 'lowercase, 3-32 chars, [a-z0-9_]']
+  email text [not null, unique, note: 'lowercase, 3-320 chars']
+  password_hash text [not null]
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table jwt_signing_keys {
+  id uuid [pk, default: `gen_random_uuid()`]
+  token_type text [not null, note: 'access | refresh']
+  algorithm text [not null, default: 'HS256']
+  secret bytea [not null]
+  state text [not null, default: 'active', note: 'active | retired | revoked']
+  verify_until timestamptz
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table user_roles {
+  user_id uuid [not null]
+  role_id bigint [not null]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, role_id) [pk]
+    role_id [name: 'user_roles_role_id_idx']
+  }
+}
+
+Table invitations {
+  id uuid [pk, default: `gen_random_uuid()`]
+  email text [not null, note: 'lowercase, 3-320 chars']
+  code text [not null, unique]
+  invited_by uuid [not null]
+  used_by uuid
+  used_at timestamptz
+  expires_at timestamptz [not null]
+  archived_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    code [name: 'invitations_code_idx']
+    email [name: 'invitations_email_idx']
+  }
+}
+
+Table password_reset_tokens {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null]
+  code text [not null, unique]
+  expires_at timestamptz [not null]
+  used_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    code [name: 'password_reset_tokens_code_idx']
+    user_id [name: 'password_reset_tokens_user_id_idx']
+  }
+}
+
+// Relationships
+Ref: user_roles.user_id > users.id [delete: cascade]
+Ref: user_roles.role_id > roles.id [delete: cascade]
+Ref: invitations.invited_by > users.id [delete: cascade]
+Ref: invitations.used_by > users.id [delete: set null]
+Ref: password_reset_tokens.user_id > users.id [delete: cascade]

@@ -1,25 +1,26 @@
 # World Generation Reference
 
-**STATUS: DRAFT — do not implement.** This document was copied from an earlier version of the game engine and has not yet been reconciled with the current drynn architecture or with `world-model.md`. Known conflicts are tracked in `project/reconciliation-notes.md`. Coding agents must not build against this spec until the DRAFT marker is removed.
+**STATUS: DRAFT.** Reconciled with the current model (`world-model.md`, `empire-model.md`, `units-model.md`, `game-model.md`). Alpha values for `Base Extraction` and the orbit-dependent `Yield Percent` formula are provisional defaults pending playtesting. See `project/reconciliation-notes.md` for status.
 
 Technical reference for alpha world generation in `drynn`.
 
-This document is the implementation target for coding agents that generate world state during setup. It defines alpha generation rules for star systems, planets, farmlands, deposits, and jump routes.
+This document is the implementation target for coding agents that generate world state during setup. It defines alpha generation rules for star systems, planets, farmland and mineable Natural Resources, and jump routes.
 
 ## Scope
 
 - This document defines alpha generation behavior only.
 - This document defines generation rules, not storage schema.
-- Setup may add additional ring-specific or homeworld-specific rules. Those rules must not silently override the alpha rules in this document.
+- Entity definitions live in `world-model.md` (pre-empire world), `empire-model.md` (empire-owned), and `units-model.md` (type catalogs).
+- All generated rows carry the `Game ID` of the game being set up; composite FK constraints enforce cross-game isolation at the DB level (see `game-model.md` §Game ID Invariant).
 
 ## Rule Precedence
 
 Apply generation rules in this precedence order:
 
-1. If a system is a home system, apply the home-system generation algorithm in this document instead of the default system planet-count and LSN algorithms.
-2. For a home system, farmland generation still uses the standard farmland algorithm in this document.
-3. For a home system, non-homeworld planets still use the standard deposit algorithm in this document.
-4. For a home system, the homeworld deposit rule overrides the standard deposit algorithm for the homeworld planet.
+1. If a system is a home system, apply the home-system generation algorithm instead of the default system planet-count and LSN algorithms.
+2. For every planet in any system, farmland Natural Resources use the standard farmland generation rule.
+3. For non-homeworld planets, mineable Natural Resources use the standard mineable-resource rule.
+4. For homeworld planets, mineable Natural Resources use the homeworld rule (`Is Infinite = true`, distinct `Capacity` / `Yield Percent`).
 
 ## Alpha Constants
 
@@ -27,20 +28,33 @@ Use these values exactly unless another alpha rule in this document says otherwi
 
 | Name | Value |
 |---|---|
-| Planet count per system | `2d5 - 1` |
+| Planet count per non-home system | `2d5 - 1` |
+| Planet count per home system | `10` |
 | Planet types | `rocky`, `gas giant`, `asteroid belt` |
 | Alpha generated planet type | `rocky` |
-| LSN range | `0..99` |
+| LSN generation range | `0..99` (the model permits `0..100`; generation intentionally stays below `100`) |
 | Habitable threshold | `LSN < 25` |
 | Initial planet LSN roll | `10d10 - 1` |
 | Orbit 3 target roll | `2d8 - 2` |
-| Farmland count | `26 - LSN` |
-| Farmland yield | `15 - orbit` food units |
-| Initial deposit yield | `10%` |
-| Deposit capacity | `1,000 * orbit` |
-| Deposit quantity | `LSN * 1,000,000` units |
-| Additional deposit initial chance | `LSN` |
-| Jump route cost | `50` |
+| Farmland Natural Resource count per eligible planet | `26 - LSN` |
+| Farmland `Capacity` | `1` (each row hosts one farm) |
+| Farmland `Base Extraction` | `100` (alpha default) |
+| Farmland `Yield Percent` | `max(1, 15 - orbit)` |
+| Farmland `Is Infinite` | `true` |
+| Standard mineable `Capacity` | `1,000 * orbit` |
+| Standard mineable `Base Extraction` | `100` (alpha default) |
+| Standard mineable `Yield Percent` | `10` |
+| Standard mineable `Reserves` | `LSN * 1,000,000` |
+| Standard mineable `Is Infinite` | `false` |
+| Additional mineable initial chance | `LSN` |
+| Homeworld mineable `Capacity` | `10,000` |
+| Homeworld mineable `Base Extraction` | `100` |
+| Homeworld mineable `Yield Percent` | `1` |
+| Homeworld mineable `Is Infinite` | `true` |
+| Jump route `Cost` | `50` |
+| Jump route `Last Turn Used` | `NULL` (never used) |
+
+Mineable `Resource Type` values: `ore`, `energy`, `gold`, `materials`. The deposit-to-output mapping (`ore → metals`, `energy → fuel`, `gold → gold`, `materials → non-metals`, `farmland → food`) lives in `units-model.md` and is applied by the engine at extraction time; generation does not emit Unit rows.
 
 ## Generated Fields
 
@@ -48,22 +62,26 @@ Use these values exactly unless another alpha rule in this document says otherwi
 
 | Field | Type | Rule |
 |---|---|---|
-| Home System | bool | When `true`, the system is a home system |
+| Home System | bool | When `true`, the system hosts an empire's home world |
 
 ### Planet Fields
 
 | Field | Type | Rule |
 |---|---|---|
 | Orbit | int | Sequential within the system, starting at `1` |
-| Planet Type | string | In alpha, always `rocky` |
-| Home World | bool | When `true`, the planet is a home world |
-| LSN | int | Generated by the LSN algorithm in this document |
+| Planet Type | enum | In alpha, always `rocky` |
+| LSN | int (0..100) | Generated by the LSN algorithm below |
+
+### Home World
+
+For each designated homeworld planet, insert one row into the `Home World` table (see `world-model.md` §Home World) with `(Game ID, Planet ID)`.
 
 ### Jump Route Fields
 
 | Field | Type | Rule |
 |---|---|---|
 | Cost | int | In alpha, always `50` |
+| Last Turn Used | int (nullable) | `NULL` at generation |
 
 ## System Generation Order
 
@@ -72,7 +90,7 @@ For each generated system, apply rules in this order:
 1. Set the system `Home System` flag as required by setup.
 2. If the system is a home system, apply the home-system generation algorithm.
 3. Otherwise, apply the default system-generation algorithm.
-4. Set each generated jump route cost to `50`.
+4. Set each generated jump route `Cost = 50` and `Last Turn Used = NULL`.
 
 ## Default System-Generation Algorithm
 
@@ -81,12 +99,12 @@ For a system that is not a home system:
 1. Roll planet count as `2d5 - 1`.
 2. Create that many planets.
 3. Assign orbit numbers sequentially starting at `1`.
-4. Set each planet's type to `rocky`.
-5. Set each planet's `Home World` flag as required by setup.
-6. Generate LSN values for all planets in the system.
-7. Generate farmlands for each planet with `LSN < 25`.
-8. Generate one initial deposit of each resource type for each planet.
-9. Generate additional deposits for each planet.
+4. Set each planet's `Planet Type` to `rocky`.
+5. No `Home World` rows are inserted for planets in a non-home system.
+6. Generate LSN values for all planets in the system (see LSN Algorithm).
+7. Generate farmland Natural Resources for each planet with `LSN < 25` (see Farmland Generation).
+8. Generate one initial mineable Natural Resource of each type (`ore`, `energy`, `gold`, `materials`) for each planet (see Mineable Natural Resource Generation § Initial Resources).
+9. Generate additional mineable Natural Resources for each planet (see Mineable Natural Resource Generation § Additional Resources).
 
 ## Home-System Generation Algorithm
 
@@ -95,7 +113,7 @@ For a system with `Home System == true`:
 1. Set planet count to `10`.
 2. Create `10` planets.
 3. Assign orbit numbers sequentially from `1` to `10`.
-4. Set each planet's type to `rocky`.
+4. Set each planet's `Planet Type` to `rocky`.
 5. Set LSN values by orbit number as follows:
 
 | Orbit | LSN |
@@ -111,11 +129,11 @@ For a system with `Home System == true`:
 | `9` | `90` |
 | `10` | `99` |
 
-6. Set `Home World = true` for the planet in orbit `4`.
-7. Set `Home World = false` for every other planet in the system.
-8. Generate farmlands for every planet using the standard farmland algorithm in this document.
-9. For each non-homeworld planet, generate deposits using the standard deposit algorithm in this document.
-10. For the homeworld planet, generate deposits using the homeworld deposit rule in this document.
+6. Insert a `Home World` row for the planet in orbit `4`.
+7. No other `Home World` rows are inserted for this system.
+8. Generate farmland Natural Resources for every planet using the standard farmland rule. The homeworld designation does not alter farmland generation.
+9. For each non-homeworld planet, generate mineable Natural Resources using the standard mineable rule.
+10. For the homeworld planet, generate mineable Natural Resources using the homeworld rule.
 
 ## LSN Algorithm
 
@@ -195,16 +213,18 @@ Then re-check `lsn[3] > target_lsn`. If true, run another iteration.
 
 ### Step 7: LSN Wrap Rules
 
-Apply these rules immediately after every LSN increment or decrement:
+Apply these rules immediately after every LSN increment or decrement during generation:
 
 - if an LSN becomes less than `0`, set it to `99`
 - if an LSN becomes greater than `99`, set it to `15`
 
+These bounds are the generation range (`0..99`). The model field `Planet.LSN` permits `0..100`, but generation never produces `100` because rocky planets are always strictly better than vacuum.
+
 ## Habitability Rule
 
-- A planet is habitable without enclosed colonies if `LSN < 25`.
+- A planet is habitable without enclosed life-support colonies if `LSN < 25`.
 
-## Farmland Algorithm
+## Farmland Generation
 
 Run the following rules for each planet after LSN generation is complete.
 
@@ -213,67 +233,85 @@ Run the following rules for each planet after LSN generation is complete.
 - If `LSN >= 25`, generate no farmland for the planet.
 - If `LSN < 25`, continue.
 
-### Step 2: Generate Farmlands
+### Step 2: Create Farmland Natural Resources
 
-For an eligible planet:
+For an eligible planet, create `26 - LSN` rows in `Natural Resource` (see `world-model.md` §Natural Resources), each with:
 
-1. Compute farmland count as `26 - LSN`.
-2. Create that many farmlands.
-3. For each farmland, set yield to `15 - orbit` food units.
+- `Resource Type`: `farmland`
+- `Capacity`: `1`
+- `Base Extraction`: `100`
+- `Yield Percent`: `max(1, 15 - orbit)`
+- `Reserves`: any value (ignored because `Is Infinite = true`)
+- `Is Infinite`: `true`
 
-## Deposit Algorithm
+Under the model, each staffed farm produces `Base Extraction × Yield Percent / 100` food per turn — i.e., `max(1, 15 - orbit)` food per farm per turn, matching the prior alpha behavior.
+
+## Mineable Natural Resource Generation
 
 Run the following rules for each planet after farmland generation.
 
-### Initial Deposits
+### Initial Resources
 
-Each planet gets one deposit of each resource type.
+Each planet gets one Natural Resource of each mineable `Resource Type`: `ore`, `energy`, `gold`, `materials`.
 
-This document does not define the full resource-type list. The generator must use the project's resource types.
+For each initial row on a non-homeworld planet:
 
-For each initial deposit on a planet:
+- `Resource Type`: one of `ore`, `energy`, `gold`, `materials`
+- `Capacity`: `1,000 * orbit`
+- `Base Extraction`: `100`
+- `Yield Percent`: `10`
+- `Reserves`: `LSN * 1,000,000`
+- `Is Infinite`: `false`
 
-- yield is `10%`
-- capacity is `1,000 * orbit`
-- quantity is `LSN * 1,000,000` units
+### Additional Resources
 
-### Additional Deposits
-
-After initial deposits are created, generate additional deposits for the same planet as follows:
+After the initial resources are created, generate additional mineable Natural Resources for the same planet as follows:
 
 1. Set `chance = LSN`.
 2. Roll `1d100`.
 3. If the roll is greater than `chance`, stop.
 4. Otherwise:
-   - create one additional deposit
-   - assign its resource type randomly
-   - set its yield to `10%`
-   - set its capacity to `1,000 * orbit`
-   - set its quantity to `LSN * 1,000,000` units
+   - create one additional Natural Resource row
+   - assign `Resource Type` randomly from `ore`, `energy`, `gold`, `materials`
+   - `Capacity`: `1,000 * orbit`
+   - `Base Extraction`: `100`
+   - `Yield Percent`: `10`
+   - `Reserves`: `LSN * 1,000,000`
+   - `Is Infinite`: `false`
 5. Set `chance = floor(chance / 2)`.
 6. If `chance == 0`, stop.
 7. Repeat from step `2`.
 
-## Homeworld Deposit Rule
+### Homeworld Rule
 
-For a planet with `Home World == true` in a home system:
+For a planet recorded in the `Home World` table (see `world-model.md` §Home World):
 
-1. Create one deposit of each resource type.
-2. For each homeworld deposit:
-   - capacity is `10,000`
-   - yield is `1%`
-   - quantity is `99,999,999`
+1. Create one Natural Resource of each mineable `Resource Type` (`ore`, `energy`, `gold`, `materials`). The additional-resources roll does not apply to the homeworld.
+2. Farmland on the homeworld uses the standard farmland rule; it is not affected by the homeworld override.
 
-Mining must not reduce the quantity of a homeworld deposit. The game engine must detect the `Home World` flag and preserve the deposit quantity during extraction.
+For each homeworld mineable Natural Resource:
+
+- `Capacity`: `10,000`
+- `Base Extraction`: `100`
+- `Yield Percent`: `1`
+- `Reserves`: any value (ignored because `Is Infinite = true`)
+- `Is Infinite`: `true`
+
+The `Is Infinite = true` flag replaces the earlier engine-level special case against the `Home World` flag during extraction. Any Natural Resource with `Is Infinite = true` is never depleted; the engine does not decrement `Reserves`.
 
 ## Jump Route Rule
 
 For alpha generation:
 
-- every generated jump route has cost `50`
+- every generated jump route has `Cost = 50`
+- every generated jump route has `Last Turn Used = NULL`
+
+Canonical endpoint ordering (`System A ID < System B ID`) and the uniqueness constraint `UNIQUE (Game ID, System A ID, System B ID)` live in `world-model.md` §Jump Routes; the generator must respect them when inserting rows.
 
 ## Notes for Implementers
 
-- `Home System` and `Home World` are flags. This document does not define when setup must set them to `true`.
-- This document defines the alpha home-system and homeworld deposit overrides only.
+- `Home System` is a flag on `Star System`; `Home World` is a row in the `Home World` table. Neither this document nor `world-model.md` defines when setup chooses which system or planet to mark.
+- This document defines the alpha home-system and homeworld overrides only.
 - This document does not define random seeding or reproducibility requirements.
+- The deposit-to-output mapping (`ore → metals`, `energy → fuel`, etc.) lives in `units-model.md` §Deposit-to-Output Mapping and is applied by the engine at extraction time; generation does not emit Unit rows.
+- All generated rows carry the current `Game ID`; composite FKs (per `game-model.md` §Game ID Invariant) enforce cross-game isolation.

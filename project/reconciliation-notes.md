@@ -16,6 +16,26 @@ Working notes for reconciling the drynn documentation set (`world-model.md`, `em
 - **Units/empire split (revision)** — `units-model.md` holds *type definitions only* (ship classes, building templates, unit-output constants, population types, factory recipes, deposit-to-output mapping). Empire-owned *instance* entities (Colony, Ship, Mine, Farm, Factory, Population Group, Training Queue, Inventory) go to `empire-model.md` during the Phase 2 hoist. This supersedes the earlier "empire-owned technical assets" framing.
 - **A1 (Game ID denormalization)** — every game-scoped entity carries a `Game ID` that FKs to `game-model.md`. Composite FKs prevent cross-game references. `Agent` is global. Details in `game-model.md` §Game ID Invariant.
 
+## Resolved (Phase 2 — world-generation rewrite, 2026-04-16)
+
+- `project/reference/world-generation.md` rewritten against the settled model:
+  - Alpha Constants table updated to model field names (`Capacity`, `Base Extraction`, `Yield Percent`, `Reserves`, `Is Infinite`). Added per-entity rows for farmland, standard mineable, and homeworld mineable.
+  - Farmland Algorithm (renamed "Farmland Generation") creates `26 - LSN` Natural Resource rows per eligible planet with `Resource Type = farmland`, `Capacity = 1`, `Yield Percent = max(1, 15 - orbit)`, `Is Infinite = true`. Net farm output `= 15 - orbit` food per turn, matching prior alpha behavior.
+  - Deposit Algorithm (renamed "Mineable Natural Resource Generation") updated: `Capacity = 1,000 * orbit`, `Yield Percent = 10`, `Reserves = LSN * 1,000,000`, `Is Infinite = false`, `Base Extraction = 100` (alpha default).
+  - Homeworld rule absorbed into `Is Infinite = true` — the engine no longer needs a `Home World` flag check during extraction. `Home World` is inserted as a row in the Home World table rather than a flag on Planet.
+  - `fuel` natural-resource references renamed to `energy` throughout.
+  - `Game ID` scoping made explicit in Scope and Notes for Implementers; cross-references `game-model.md` §Game ID Invariant.
+  - LSN wrap rules retained. Note clarifies that the generation `0..99` range is intentionally narrower than the model `0..100` range (planets are always strictly better than vacuum).
+  - Jump Route Rule adds `Last Turn Used = NULL` at generation.
+- Phase 2 bullets closed: "Deposit field naming" and "Generation never mentions Game ID scoping."
+- DRAFT banner on `world-generation.md` softened — content is reconciled; only alpha `Base Extraction` defaults are flagged as provisional.
+
+## Resolved (Phase 1.5 G5 — roles/players explanation, 2026-04-16)
+
+- `project/explanation/roles-membership-and-status.md` rewritten against the Player model. Obsolete sections removed: `Game Membership Types`, `Membership Status`, `Why agent Is A Status Instead of a Type`, and the old `Practical Language We Want`. New content describes `Player`, the `Is GM` flag, and `empire_control` as the control bridge.
+- Title updated to "Roles and Game Participation." Filename kept (`roles-membership-and-status.md`) to preserve cross-references; a note in the DRAFT banner flags the legacy filename.
+- DRAFT banner softened: application-role content is current; game-participation content remains forward-looking until the schema lands.
+
 ## Resolved (units hoist — Sub-sweep 3, 2026-04-16)
 
 - **`Population Group`** hoisted to `empire-model.md`: PK `(Game ID, Vessel ID, Group Type)`. `Group Type` is an inline enum (`untrained`, `worker`, `manager`, `soldier`, `pilot`). Previous Colony-ID / Ship-ID XOR replaced by single Vessel ID.
@@ -131,7 +151,7 @@ Parallel to Phase 1. Application-role vocabulary lives in `project/explanation/r
 - **G2. [RESOLVED]** All rounds of open questions in `empire-model.md` are closed. Final shape: control lives on the `empire_control` bridge with nullable `Player ID`, nullable `Agent ID`, and a `GM Set` boolean that gates player self-service over the agent column. Empire has no status column — inactive empires are just uncontrolled and are mechanically processed for production/attrition. Agents are shared across games and immutable once created; new versions add new rows. Auto-updates never happen; only the GM changes agent assignments (and only the GM can when `GM Set = true`). Admin-driven seat transfer is disallowed in all environments. GM lifecycle uses `resigned` status with the record otherwise intact; a fresh account may be added as a new GM afterward. Vacation is an out-of-game concept documented in `project/explanation/vacation-mode.md`.
 - **G3. [RESOLVED]** The Empire entity has been hoisted to `empire-model.md` together with Player, Agent, and a new `empire_control` bridge. `world-model.md` §Empires is now a pointer. Control lives on `empire_control`, not on Empire; `Membership ID` no longer exists as a field anywhere.
 - **G4. [RESOLVED]** The controlling entity is `Player`, documented in `empire-model.md`. No separate Membership section is needed in `world-model.md`.
-- **G5.** `roles-membership-and-status.md` still contains the obsolete sections "Game Membership Types," "Membership Status," "Why `agent` Is A Status Instead of a Type," and "The Practical Language We Want." These are superseded by the Player model in `empire-model.md`. Rewrite or remove those sections; the application-role section was already fixed in G1.
+- **G5. [RESOLVED]** `roles-membership-and-status.md` rewritten against the Player model. Obsolete membership sections removed; new content describes `Player`, `Is GM`, and `empire_control` as the control bridge. Title updated to "Roles and Game Participation"; filename kept to preserve cross-references.
 - **G6.** Control-shape shift: prior rounds of this doc assumed an "agent Player row" pattern. The final design puts control on an `empire_control` bridge with nullable `Player ID` and `Agent ID`. Vacation, resignation, and re-humanizing are all bridge-row edits; no `superseded` status was needed. Any earlier notes or scratch in this file or `empire-model.md` referencing `Controlled By` on Player, `Agent ID` on Player, or `superseded` are obsolete.
 
 ## Phase 2 — Cross-document conflicts (deferred)
@@ -139,11 +159,11 @@ Parallel to Phase 1. Application-role vocabulary lives in `project/explanation/r
 Tracked for later; don't start until Phase 1 is resolved.
 
 - **[RESOLVED at model level]** Farmland cardinality: Farmland is now a `Resource Type` value in the Natural Resource entity; a planet has many rows including any number of farmland rows. Generation doc rewrite deferred.
-- Deposit field naming: generation's `quantity` vs model's `Reserves`; generation doesn't set `Base Extraction`. Model side is canonical; generation rewrite deferred.
+- **[RESOLVED]** Deposit field naming: generation rewrite uses model vocabulary (`Capacity`, `Base Extraction`, `Yield Percent`, `Reserves`, `Is Infinite`). `Base Extraction = 100` alpha default set explicitly.
 - **[RESOLVED]** Generation references `LSN`, `Planet Type`, `Home System`, `Home World` — all now on the model. The `0..100` model range vs `0..99` generation range is intentional (planets are always strictly better than vacuum) and does not require reconciliation.
-- Generation never mentions `Game ID` scoping. Pending generation rewrite pass.
+- **[RESOLVED]** Generation `Game ID` scoping: Scope and Notes for Implementers now state all generated rows carry the current `Game ID`, with cross-reference to `game-model.md` §Game ID Invariant.
 - **[RESOLVED at model level]** Homeworld immutable deposit: replaced by `Is Infinite = true` on the Natural Resource row. Generation doc rewrite deferred.
-- Units hoisting (revised): Colony, Ship, Mine, Farm, Factory, Population Group, Training Queue, and Inventory currently live in `world-model.md`. Phase 2 is a *double-destination* move: instance rows go to `empire-model.md`; type definitions (ship classes, building templates, unit-output constants, deposit-to-output mapping, factory recipes, population-type training durations) consolidate into `units-model.md`.
+- **[RESOLVED]** Units hoist complete across Sub-sweeps 1–3. Instance rows moved to `empire-model.md` (as `Vessel`, `Vessel Inventory`, `Population Group`, `Training Queue`, `Mining/Farming/Factory Group`); type definitions consolidated into `units-model.md` (as `Unit`, `Unit Recipe`, `Vessel Type`).
 
 ## Phase 3 — Architecture alignment (deferred)
 
