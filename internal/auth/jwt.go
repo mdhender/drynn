@@ -132,6 +132,13 @@ func RefreshCookie(c *echo.Context) (*http.Cookie, error) {
 	return c.Cookie(refreshCookieName)
 }
 
+// AccessCookieName returns the name used for the access-token cookie. Exposed
+// so tests and other packages can reference the single source of truth.
+func AccessCookieName() string { return accessCookieName }
+
+// RefreshCookieName returns the name used for the refresh-token cookie.
+func RefreshCookieName() string { return refreshCookieName }
+
 func SetViewer(c *echo.Context, viewer *Viewer) {
 	c.Set("current_viewer", viewer)
 }

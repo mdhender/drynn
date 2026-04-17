@@ -123,7 +123,7 @@ func (ts *testServer) authCookie(t testing.TB, userID uuid.UUID) *http.Cookie {
 	if err != nil {
 		t.Fatalf("issue tokens: %v", err)
 	}
-	return &http.Cookie{Name: "hobo_access", Value: pair.AccessToken}
+	return &http.Cookie{Name: auth.AccessCookieName(), Value: pair.AccessToken}
 }
 
 func get(path string) *http.Request {
@@ -261,7 +261,7 @@ func TestSmokeTest_InvitationToSignOut(t *testing.T) {
 	}))
 	assertRedirect(t, resp, http.StatusSeeOther, "/app")
 	assertFlash(t, resp, "Welcome aboard.")
-	if !sess.hasCookie("hobo_access") {
+	if !sess.hasCookie(auth.AccessCookieName()) {
 		t.Fatal("step 1: no access cookie after registration")
 	}
 
@@ -287,7 +287,7 @@ func TestSmokeTest_InvitationToSignOut(t *testing.T) {
 	}))
 	assertRedirect(t, resp, http.StatusSeeOther, "/app")
 	assertFlash(t, resp, "Welcome back.")
-	if !adminSess.hasCookie("hobo_access") {
+	if !adminSess.hasCookie(auth.AccessCookieName()) {
 		t.Fatal("step 5: no access cookie after admin sign-in")
 	}
 
@@ -423,7 +423,7 @@ func TestHandler_SignIn_Success(t *testing.T) {
 	cookies := resp.Cookies()
 	found := false
 	for _, c := range cookies {
-		if c.Name == "hobo_access" && c.Value != "" {
+		if c.Name == auth.AccessCookieName() && c.Value != "" {
 			found = true
 		}
 	}

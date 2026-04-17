@@ -89,7 +89,7 @@ the fix in both the migration and `db/schema.sql`.
 
 ---
 
-### BD-4. Cookie rename missed four literals in `handler_test.go`
+### BD-4. Cookie rename missed four literals in `handler_test.go` [DONE]
 
 **Severity:** normal
 
