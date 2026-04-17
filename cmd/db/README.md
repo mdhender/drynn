@@ -105,8 +105,14 @@ CREATE ROLE drynn_atlas_user WITH LOGIN PASSWORD 'strong-password-here';
 CREATE DATABASE drynn_atlas OWNER drynn_atlas_user;
 \c drynn_atlas
 CREATE SCHEMA drynn_atlas AUTHORIZATION drynn_atlas_user;
+-- Atlas scratch schema. The checked-in atlas.hcl sets search_path=drynn_dev
+-- on its dev URL so the scratch schema mirrors the application schema name;
+-- without this CREATE, `atlas migrate diff` fails with `schema "drynn_dev"
+-- was not found`.
+CREATE SCHEMA drynn_dev AUTHORIZATION drynn_atlas_user;
 ALTER ROLE drynn_atlas_user IN DATABASE drynn_atlas SET search_path TO drynn_atlas, public;
 GRANT ALL ON SCHEMA drynn_atlas TO drynn_atlas_user;
+GRANT ALL ON SCHEMA drynn_dev TO drynn_atlas_user;
 ```
 
 If you want all application tables to live outside `public`, create a dedicated role, database, and schema first:

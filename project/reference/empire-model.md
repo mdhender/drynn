@@ -87,7 +87,7 @@ An account's seat in a specific game. Every Player is account-backed; agents are
 |------------|-------------------------------------------|-------------------------------------------------------------|
 | ID         | int64                                     | Internal identifier                                         |
 | Game ID    | int64                                     | The game this player belongs to                             |
-| Account ID | int64                                     | The account behind this seat (not nullable)                 |
+| Account ID | uuid                                      | The account behind this seat (FK to `users.id`; not nullable) |
 | Is GM      | bool                                      | When true, this is a game-master seat with no empire        |
 | Status     | enum (`active`, `resigned`, `eliminated`) | Current lifecycle state of the seat                         |
 
@@ -167,6 +167,7 @@ A per-empire name for a star system. Systems start unnamed; an empire may assign
 
 | Field     | Type   | Description                        |
 |-----------|--------|------------------------------------|
+| Game ID   | int64  | The game this naming belongs to    |
 | Empire ID | int64  | The empire naming the system       |
 | System ID | int64  | The star system being named        |
 | Name      | string | The per-empire name for the system |
@@ -175,6 +176,8 @@ Constraints:
 
 - **PRIMARY KEY (Empire ID, System ID)** — one name per empire per system.
 - **UNIQUE (Empire ID, lower(Name))** — case-insensitive per-empire uniqueness. `Empire ID` is game-scoped, so this is implicitly per-game. Normalization pipeline specified in `name-normalization.md`.
+- **FOREIGN KEY (Game ID, Empire ID) REFERENCES empires(Game ID, ID)** — per A1.
+- **FOREIGN KEY (Game ID, System ID) REFERENCES star_systems(Game ID, ID)** — per A1. Prevents cross-game references.
 
 Notes:
 
@@ -188,6 +191,7 @@ A per-empire name for a planet. Planets start unnamed; an empire may assign its 
 
 | Field     | Type   | Description                        |
 |-----------|--------|------------------------------------|
+| Game ID   | int64  | The game this naming belongs to    |
 | Empire ID | int64  | The empire naming the planet       |
 | Planet ID | int64  | The planet being named             |
 | Name      | string | The per-empire name for the planet |
@@ -196,6 +200,8 @@ Constraints:
 
 - **PRIMARY KEY (Empire ID, Planet ID)** — one name per empire per planet.
 - **UNIQUE (Empire ID, lower(Name))** — case-insensitive per-empire uniqueness. `Empire ID` is game-scoped, so this is implicitly per-game. Normalization pipeline specified in `name-normalization.md`.
+- **FOREIGN KEY (Game ID, Empire ID) REFERENCES empires(Game ID, ID)** — per A1.
+- **FOREIGN KEY (Game ID, Planet ID) REFERENCES planets(Game ID, ID)** — per A1. Prevents cross-game references.
 
 Notes:
 
@@ -227,7 +233,7 @@ Notes:
 - Knowledge is per-empire, per-jump-point, per-system.
 - Each field is independent; an empire may detect a jump point without knowing its range band or destination.
 - `Route ID` FKs to `Jump Routes` in `world-model.md`.
-- Schema only in Sprint 4; see [Jump Point Knowledge and Orders](jump-point-knowledge-and-orders.md) for discovery rules and order mechanics.
+- See [Jump Point Knowledge and Orders](jump-point-knowledge-and-orders.md) for discovery rules and order mechanics.
 
 ## Vessel
 

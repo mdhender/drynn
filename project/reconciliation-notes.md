@@ -2,6 +2,16 @@
 
 Working notes for reconciling the drynn documentation set (`world-model.md`, `empire-model.md`, `units-model.md`, `world-generation.md`, `game-model.md`) against the current architecture. The reference docs were copied from a prior game engine; this tracks what needs to change before any of them is treated as a spec.
 
+## Resolved (Phase 3 — schema alignment, 2026-04-17)
+
+- Settled model translated into `db/schema.sql`. 23 new tables: `games`, global catalogs (`vessel_types`, `units`, `unit_recipes`), world (`star_systems`, `jump_routes`, `planets`, `home_worlds`, `natural_resources`), empire layer (`agents`, `empires`, `players`, `empire_control`), per-empire views (`empire_system_names`, `empire_planet_names`, `empire_jump_point_knowledge`), vessels (`vessels`, `vessel_inventory`), and empire instance entities (`population_groups`, `training_queue`, `mining_groups`, `farming_groups`, `factory_groups`). Migration generated via `atlas migrate diff add_game_schema --env local` at `db/migrations/20260417040157_add_game_schema.sql`. `atlas migrate lint` passes with only PG110 (column padding) warnings, which are cosmetic.
+- Conventions applied: BIGINT PKs via `BIGSERIAL` (UUID kept for `players.account_id` which FKs `users.id`); CHECK constraints for enums (matching existing `jwt_signing_keys.state` pattern, no Postgres `ENUM` types); composite FKs carrying `game_id` per A1 prevent cross-game references; functional `UNIQUE (lower(name))` indexes enforce case-insensitive uniqueness per `name-normalization.md`.
+- Minor model doc alignments made during the schema pass:
+  - `Player.Account ID` typed as `uuid` (FK to `users.id`) rather than `int64`.
+  - `Empire System Name` and `Empire Planet Name` now carry `Game ID` per A1, enabling composite FKs to both empire and system/planet and preventing cross-game references.
+- Sprint-scoped language removed from `empire-model.md` (the one remaining "Schema only in Sprint 4" reference on `Empire Jump Point Knowledge` is gone; schema exists now).
+- **Deferred from this pass:** sqlc queries (to land alongside engine code per file), RLS policies (no session-role infrastructure in place), world-generation logic (Go code, not schema), seed data, DRAFT-banner softening sweep on the model docs.
+
 ## Resolved (F2 closure, 2026-04-16)
 
 - **F2** (name uniqueness) closed across every player-settable `Name` field:
@@ -183,7 +193,7 @@ Tracked for later; don't start until Phase 1 is resolved.
 - **[RESOLVED at model level]** Homeworld immutable deposit: replaced by `Is Infinite = true` on the Natural Resource row. Generation doc rewrite deferred.
 - **[RESOLVED]** Units hoist complete across Sub-sweeps 1–3. Instance rows moved to `empire-model.md` (as `Vessel`, `Vessel Inventory`, `Population Group`, `Training Queue`, `Mining/Farming/Factory Group`); type definitions consolidated into `units-model.md` (as `Unit`, `Unit Recipe`, `Vessel Type`).
 
-## Phase 3 — Architecture alignment (deferred)
+## Phase 3 — Architecture alignment
 
-- Neither spec is reflected in `db/schema.sql` yet. Current schema: `roles`, `users`, `user_roles`, `jwt_signing_keys` only.
-- Sprint-scoped language ("Schema only in Sprint 4", "Sprint 5/6") needs to be reconciled with current sprint plan once Phase 1/2 are stable.
+- **[RESOLVED]** Model translated into `db/schema.sql`; migration `20260417040157_add_game_schema.sql` generated and lints clean. See the 2026-04-17 Phase 3 entry at the top of this file for the full rundown.
+- **[RESOLVED]** Sprint-scoped language ("Schema only in Sprint 4") removed from `empire-model.md`. The prior "Sprint 5/6" references in inherited docs were already gone by the time this pass ran.
