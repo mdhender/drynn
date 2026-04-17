@@ -54,8 +54,15 @@ func NewKeyStore(pool *pgxpool.Pool) *KeyStore {
 
 func (s *KeyStore) EnsureReady(ctx context.Context) error {
 	for _, tokenType := range []string{TokenTypeAccess, TokenTypeRefresh} {
-		if _, err := s.ActiveSigningKey(ctx, tokenType); err != nil {
+		_, err := s.ActiveSigningKey(ctx, tokenType)
+		if err == nil {
+			continue
+		}
+		if !errors.Is(err, ErrNoActiveSigningKey) {
 			return fmt.Errorf("%s signing key: %w", tokenType, err)
+		}
+		if _, _, err := s.CreateSigningKey(ctx, tokenType, 0); err != nil {
+			return fmt.Errorf("%s signing key: seed: %w", tokenType, err)
 		}
 	}
 
