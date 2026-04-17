@@ -21,6 +21,7 @@ type AuthHandler struct {
 	jwtManager           *auth.Manager
 	requestAccessEnabled bool
 	baseURL              string
+	logger               *slog.Logger
 }
 
 func NewAuthHandler(
@@ -31,7 +32,11 @@ func NewAuthHandler(
 	jwtManager *auth.Manager,
 	requestAccessEnabled bool,
 	baseURL string,
+	logger *slog.Logger,
 ) *AuthHandler {
+	if logger == nil {
+		logger = slog.Default()
+	}
 	return &AuthHandler{
 		users:                users,
 		invitations:          invitations,
@@ -40,6 +45,7 @@ func NewAuthHandler(
 		jwtManager:           jwtManager,
 		requestAccessEnabled: requestAccessEnabled,
 		baseURL:              baseURL,
+		logger:               logger,
 	}
 }
 
@@ -112,7 +118,7 @@ func (h *AuthHandler) Register(c *echo.Context) error {
 	}
 
 	if err := h.invitations.RedeemInvitation(c.Request().Context(), code, user.ID); err != nil {
-		slog.Default().Error("register: redeem invitation failed after successful user creation",
+		h.logger.Error("register: redeem invitation failed after successful user creation",
 			"user_id", user.ID,
 			"code", code,
 			"error", err)
@@ -174,7 +180,7 @@ func (h *AuthHandler) RequestAccess(c *echo.Context) error {
 	}
 
 	if c.FormValue("website") != "" {
-		slog.Default().Info("request-access: honeypot triggered", "ip", c.RealIP())
+		h.logger.Info("request-access: honeypot triggered", "ip", c.RealIP())
 		return c.Render(http.StatusOK, "public/request-access", RequestAccessViewData{
 			BaseViewData: baseView(c, "Request access"),
 			Submitted:    true,
@@ -202,7 +208,7 @@ func (h *AuthHandler) RequestAccess(c *echo.Context) error {
 				Error:        "Enter a valid email address.",
 			})
 		}
-		slog.Default().Error("request-access: send failed", "error", err)
+		h.logger.Error("request-access: send failed", "error", err)
 	}
 
 	return c.Render(http.StatusOK, "public/request-access", RequestAccessViewData{
@@ -221,7 +227,7 @@ func (h *AuthHandler) ForgotPassword(c *echo.Context) error {
 	email := c.FormValue("email")
 
 	if err := h.passwordResets.SendResetByEmail(c.Request().Context(), email, h.baseURL); err != nil {
-		slog.Default().Error("forgot-password: send reset failed", "error", err)
+		h.logger.Error("forgot-password: send reset failed", "error", err)
 	}
 
 	return c.Render(http.StatusOK, "public/forgot-password", ForgotPasswordViewData{

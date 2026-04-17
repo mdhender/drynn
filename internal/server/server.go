@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -49,11 +50,14 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, err
 	}
 
+	logger := slog.Default()
+
 	jwtManager := auth.NewManager(
 		keyStore,
 		cfg.JWTAccessTTL,
 		cfg.JWTRefreshTTL,
 		cfg.CookieSecure,
+		logger,
 	)
 
 	e := echo.New()
@@ -84,6 +88,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		jwtManager,
 		cfg.RequestAccessEnabled && cfg.AdminContactEmail != "",
 		cfg.BaseURL,
+		logger,
 	)
 	appHandler := handler.NewAppHandler(userService)
 	adminHandler := handler.NewAdminHandler(userService, invitationService, passwordResetService, cfg.BaseURL)

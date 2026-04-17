@@ -2,7 +2,6 @@ package auth
 
 import (
 	"errors"
-	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -14,7 +13,7 @@ import (
 func RequireAuth(manager *Manager) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
-			logger := slog.Default()
+			logger := manager.logger
 			path := c.Request().URL.Path
 
 			token, err := tokenFromRequest(c)
@@ -50,7 +49,7 @@ func RequireAuth(manager *Manager) echo.MiddlewareFunc {
 }
 
 func tryRefreshAccess(c *echo.Context, manager *Manager) (*Claims, bool) {
-	logger := slog.Default()
+	logger := manager.logger
 	path := c.Request().URL.Path
 
 	cookie, err := RefreshCookie(c)

@@ -83,14 +83,14 @@ func newTestServer(t testing.TB) *testServer {
 		t.Fatalf("seed jwt keys: %v", err)
 	}
 
-	jwtMgr := auth.NewManager(keyStore, 15*time.Minute, 24*time.Hour, false)
+	jwtMgr := auth.NewManager(keyStore, 15*time.Minute, 24*time.Hour, false, nil)
 	rec := &templateRecorder{}
 
 	e := echo.New()
 	e.Renderer = rec
 
 	publicH := handler.NewPublicHandler()
-	authH := handler.NewAuthHandler(userSvc, invSvc, pwdSvc, accessSvc, jwtMgr, false, "http://localhost:8080")
+	authH := handler.NewAuthHandler(userSvc, invSvc, pwdSvc, accessSvc, jwtMgr, false, "http://localhost:8080", nil)
 	appH := handler.NewAppHandler(userSvc)
 	adminH := handler.NewAdminHandler(userSvc, invSvc, pwdSvc, "http://localhost:8080")
 	healthH := handler.NewHealthHandler(pool)

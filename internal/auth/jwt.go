@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -71,14 +72,19 @@ type Manager struct {
 	accessTTL    time.Duration
 	refreshTTL   time.Duration
 	cookieSecure bool
+	logger       *slog.Logger
 }
 
-func NewManager(keys *KeyStore, accessTTL, refreshTTL time.Duration, cookieSecure bool) *Manager {
+func NewManager(keys *KeyStore, accessTTL, refreshTTL time.Duration, cookieSecure bool, logger *slog.Logger) *Manager {
+	if logger == nil {
+		logger = slog.Default()
+	}
 	return &Manager{
 		keys:         keys,
 		accessTTL:    accessTTL,
 		refreshTTL:   refreshTTL,
 		cookieSecure: cookieSecure,
+		logger:       logger,
 	}
 }
 

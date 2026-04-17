@@ -4,7 +4,7 @@ Reviewed: 2026-04-16
 
 ---
 
-## 1. Duplicate `MailgunConfig` structs [DONE]
+## CDRVW-1. Duplicate `MailgunConfig` structs [DONE]
 
 **Files:**
 - `internal/config/config.go` — `config.MailgunConfig`
@@ -20,7 +20,7 @@ everywhere, or define one canonical type and alias the other.
 
 ---
 
-## 2. Duplicate "is Mailgun configured?" logic [DONE]
+## CDRVW-2. Duplicate "is Mailgun configured?" logic [DONE]
 
 **Files:**
 - `internal/config/config.go:40` — `config.MailgunConfig.Configured()` method
@@ -35,7 +35,7 @@ canonical `MailgunConfig` type.
 
 ---
 
-## 3. Stale "Hobo" branding scattered across the codebase [DONE]
+## CDRVW-3. Stale "Hobo" branding scattered across the codebase [DONE]
 
 The project was renamed from **Hobo** to **Drynn**, but old references remain
 in production-visible strings and internal constants:
@@ -58,7 +58,7 @@ window.
 
 ---
 
-## 4. Env var prefix inconsistency [DONE]
+## CDRVW-4. Env var prefix inconsistency [DONE]
 
 `internal/config/config.go` uses **two different prefixes**:
 
@@ -72,7 +72,7 @@ optional fallback during a deprecation period).
 
 ---
 
-## 5. `ListInvitations` hydration duplicates `mapInvitationRow` [DONE]
+## CDRVW-5. `ListInvitations` hydration duplicates `mapInvitationRow` [DONE]
 
 **File:** `internal/service/invitation_service.go`
 
@@ -91,7 +91,7 @@ enough to cover both row types.
 
 ---
 
-## 6. `signToken` computes `issuedAt` independently from `IssueTokens` [DONE]
+## CDRVW-6. `signToken` computes `issuedAt` independently from `IssueTokens` [DONE]
 
 **File:** `internal/auth/jwt.go`
 
@@ -106,7 +106,7 @@ pair are derived from a single clock read.
 
 ---
 
-## 7. `isfile` has a redundant nil check [DONE]
+## CDRVW-7. `isfile` has a redundant nil check [DONE]
 
 **File:** `internal/config/dotenv.go:47-56`
 
@@ -134,7 +134,7 @@ return err == nil && sb.Mode().IsRegular()
 
 ---
 
-## 8. `SiteFS` silently swallows the `fs.Sub` error [DONE]
+## CDRVW-8. `SiteFS` silently swallows the `fs.Sub` error [DONE]
 
 **File:** `sitefs.go:14`
 
@@ -157,7 +157,7 @@ helpers that panic with a clear message during startup.
 
 ---
 
-## 9. N+1 query in `ListUsers` [DONE]
+## CDRVW-9. N+1 query in `ListUsers` [DONE]
 
 **File:** `internal/service/user_service.go:176-191`
 
@@ -170,7 +170,7 @@ users this results in N+1 database round-trips.
 
 ---
 
-## 10. `EnsureBootstrapAdmin` bypasses its own validation [DONE]
+## CDRVW-10. `EnsureBootstrapAdmin` bypasses its own validation [DONE]
 
 **File:** `internal/service/user_service.go:374-416`
 
@@ -190,7 +190,7 @@ downstream validators handle it consistently.
 
 ---
 
-## 11. `Refresh` handler re-parses the subject UUID redundantly [DONE]
+## CDRVW-11. `Refresh` handler re-parses the subject UUID redundantly [DONE]
 
 **File:** `internal/handler/auth.go:262-291`
 
@@ -213,7 +213,7 @@ reduce scattered `uuid.Parse(claims.Subject)` calls.
 
 ---
 
-## 12. Flash messages via query parameter are not signed [DEFER]
+## CDRVW-12. Flash messages via query parameter are not signed [DEFER]
 
 **File:** `internal/handler/view.go:141-148, 192-198`
 
@@ -230,7 +230,7 @@ messages so only server-originated messages are displayed.
 
 ---
 
-## 13. Hardcoded email HTML in service layer [DONE]
+## CDRVW-13. Hardcoded email HTML in service layer [DONE]
 
 **Files:**
 - `internal/service/invitation_service.go:119-125`
@@ -249,7 +249,7 @@ email-rendering layer.
 
 ---
 
-## 14. `requestBaseURL` trusts `X-Forwarded-*` headers unconditionally [DONE]
+## CDRVW-14. `requestBaseURL` trusts `X-Forwarded-*` headers unconditionally [DONE]
 
 **File:** `internal/handler/admin.go:269-286`
 
@@ -265,7 +265,7 @@ headers.
 
 ---
 
-## 15. Repeated `slog.Default()` calls instead of injected logger
+## CDRVW-15. Repeated `slog.Default()` calls instead of injected logger [DONE]
 
 **Files:**
 - `internal/auth/middleware.go:18,54`
@@ -279,7 +279,7 @@ the request context) instead of reaching for the global default.
 
 ---
 
-## 16. `loadCurrentViewer` middleware could use `Claims.UserID()` helper [DONE]
+## CDRVW-16. `loadCurrentViewer` middleware could use `Claims.UserID()` helper [DONE]
 
 **File:** `internal/server/server.go:171-200`
 
@@ -288,7 +288,7 @@ the `RequireAuth` middleware and the `Refresh` handler. See smell #11.
 
 ---
 
-## 17. `handler_test.go` missing `baseURL` arguments [DONE]
+## CDRVW-17. `handler_test.go` missing `baseURL` arguments [DONE]
 
 **File:** `internal/server/handler_test.go:93-95`
 
