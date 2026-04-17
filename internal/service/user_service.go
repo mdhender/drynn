@@ -289,6 +289,11 @@ func (s *UserService) CreateUser(ctx context.Context, input CreateUserInput) (*U
 }
 
 func (s *UserService) UpdateUser(ctx context.Context, input UpdateUserInput) (*User, error) {
+	// forbid leading and trailing spaces in password if one is supplied
+	if input.Password != "" && input.Password != strings.TrimSpace(input.Password) {
+		return nil, fmt.Errorf("password must not start or end with spaces")
+	}
+
 	handle, err := normalizeHandle(input.Handle)
 	if err != nil {
 		return nil, err
@@ -325,7 +330,8 @@ func (s *UserService) UpdateUser(ctx context.Context, input UpdateUserInput) (*U
 		return nil, mapConstraintError(err)
 	}
 
-	if strings.TrimSpace(input.Password) != "" {
+	// update password only if a value has been passed in
+	if input.Password != "" {
 		if err := validatePassword(input.Password); err != nil {
 			return nil, err
 		}
@@ -577,6 +583,10 @@ func (s *UserService) SetPasswordByEmail(ctx context.Context, email, password st
 
 func validatePassword(password string) error {
 	if len(strings.TrimSpace(password)) < 8 {
+		return ErrInvalidPassword
+	}
+	// forbid leading and trailing spaces in passwords
+	if normalized := strings.TrimSpace(password); normalized != password {
 		return ErrInvalidPassword
 	}
 
