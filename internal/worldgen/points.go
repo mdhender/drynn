@@ -80,28 +80,6 @@ func noCloserThan(set []point, p int, d float64) bool {
 	return true
 }
 
-type naivePointsGenerator struct{}
-
-// Generate returns n points uniformly distributed in the closed unit ball
-// via rejection sampling from the enclosing cube [-1, 1]³. Roughly 48% of
-// candidates are rejected (the cube has volume 8 vs. the ball's 4π/3 ≈ 4.19),
-// so expect ~1.91·n RNG draws per point on average.
-func (pg naivePointsGenerator) Generate(n int, r *rand.Rand) []point {
-	if n <= 0 {
-		return nil
-	}
-	points := make([]point, 0, n)
-	for len(points) < n {
-		x := 2*r.Float64() - 1
-		y := 2*r.Float64() - 1
-		z := 2*r.Float64() - 1
-		if x*x+y*y+z*z <= 1 {
-			points = append(points, point{x: x, y: y, z: z})
-		}
-	}
-	return points
-}
-
 // sortPoints sorts points in place by Euclidean distance from the origin,
 // ascending. Ties are broken by x, then y, then z, all ascending.
 //
@@ -124,6 +102,28 @@ func sortPoints(points []point) {
 		}
 		return cmp.Compare(a.z, b.z)
 	})
+}
+
+type naivePointsGenerator struct{}
+
+// Generate returns n points uniformly distributed in the closed unit ball
+// via rejection sampling from the enclosing cube [-1, 1]³. Roughly 48% of
+// candidates are rejected (the cube has volume 8 vs. the ball's 4π/3 ≈ 4.19),
+// so expect ~1.91·n RNG draws per point on average.
+func (pg naivePointsGenerator) Generate(n int, r *rand.Rand) []point {
+	if n <= 0 {
+		return nil
+	}
+	points := make([]point, 0, n)
+	for len(points) < n {
+		x := 2*r.Float64() - 1
+		y := 2*r.Float64() - 1
+		z := 2*r.Float64() - 1
+		if x*x+y*y+z*z <= 1 {
+			points = append(points, point{x: x, y: y, z: z})
+		}
+	}
+	return points
 }
 
 type uniformSpherePointsGenerator struct{}
