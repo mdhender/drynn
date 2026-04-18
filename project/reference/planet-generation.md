@@ -174,11 +174,13 @@ if num_planets < 4 AND planet_number < 3:
 
 #### Step 9 — Enforce Temperature Ordering
 
-Planets farther from the star must not be warmer than planets closer to it:
+Planets farther from the star must not be warmer than planets closer to it.
+The comparison is against the previous planet's final (stored) temperature
+class:
 
 ```
-if planet_number > 1 AND temperature_class[planet_number - 1] < tc:
-    tc = temperature_class[planet_number - 1]
+if planet_number > 1 AND previous_planet.temperature_class < tc:
+    tc = previous_planet.temperature_class
 ```
 
 #### Step 10 — Earth-Like Override
@@ -235,6 +237,9 @@ gas_percent[nitro_slot] = 100 - total_percent
 ```
 
 Any remaining gas slots are set to gas=0, gas_percent=0.
+
+> **Invariant:** The algorithm produces at most 4 gases (ammonia, nitrogen,
+> CO2, oxygen), so slots 0–3 are never overflowed.
 
 After this override, **skip** the remaining steps (pressure class, atmosphere,
 mining difficulty) for this planet and proceed to the next planet.
@@ -317,11 +322,12 @@ Repeat the following until `num_gases_found > 0`:
 For each gas index `i` from `first_gas` to `first_gas + 4`:
 
 1. If `num_gases_found == num_gases_wanted`, stop iterating.
-2. If `i == HE` (Helium, value 3):
+2. If `i == HE` (Helium, value 3) — use helium-specific rules
+   (the general skip rule below does **not** apply):
    - Skip if `roll(1, 3) > 1` (2-in-3 chance of skipping).
    - Skip if `tc > 5` (too hot for helium).
    - Otherwise: add Helium with quantity = `roll(1, 20)`.
-3. If `i != HE`:
+3. If `i != HE` — use the general skip rule:
    - If `roll(1, 3) == 3`, skip this gas.
    - Otherwise: add gas `i`.
      - If `i == O2`, quantity = `roll(1, 50)`.
@@ -405,39 +411,10 @@ a viability score is computed across **all** planets in the system.
 
 ### LSN Function
 
-The LSN (Life Support Needed) function computes the approximate environmental
-difference between a candidate planet and the home planet:
-
-```
-func LSN(candidate, home_planet) -> int:
-    ls_needed = 0
-
-    // temperature difference
-    tc_diff = abs(candidate.temperature_class - home_planet.temperature_class)
-    ls_needed += 2 * tc_diff
-
-    // pressure difference
-    pc_diff = abs(candidate.pressure_class - home_planet.pressure_class)
-    ls_needed += 2 * pc_diff
-
-    // gas compatibility: assume oxygen is required
-    ls_needed += 2   // start by assuming no oxygen
-
-    for each gas g in candidate.gas[0..3]:
-        if g == 0:
-            continue
-        if g == O2:
-            ls_needed -= 2   // found oxygen
-        poison = true
-        for each gas k in home_planet.gas[0..3]:
-            if g == k:
-                poison = false
-                break
-        if poison:
-            ls_needed += 2
-
-    return ls_needed
-```
+The viability check uses the **Approximate LSN** algorithm defined in
+[lsn-determination.md](lsn-determination.md). That variant uses a multiplier
+of 2 (not 3), assumes oxygen is required, and treats any gas not present
+on the home planet as poisonous.
 
 ### Viability Score
 
