@@ -208,3 +208,123 @@ func TestAPI_Games_Show_InvalidID(t *testing.T) {
 	}
 }
 
+func deleteJSON(path, auth string) *http.Request {
+	req := httptest.NewRequest(http.MethodDelete, path, nil)
+	req.Header.Set("Accept", "application/json")
+	if auth != "" {
+		req.Header.Set("Authorization", auth)
+	}
+	return req
+}
+
+func putJSON(path, auth string, body []byte) *http.Request {
+	req := httptest.NewRequest(http.MethodPut, path, bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	if auth != "" {
+		req.Header.Set("Authorization", auth)
+	}
+	return req
+}
+
+func TestAPI_Games_Delete_Admin(t *testing.T) {
+	ts := newTestServer(t)
+	auth := seedAdmin(t, ts)
+	ctx := context.Background()
+	game := ts.fix.NewGame().Name("Alpha").Build(ctx)
+
+	resp := ts.do(deleteJSON(fmt.Sprintf("/api/v1/games/%d", game.ID), auth))
+	assertStatus(t, resp, http.StatusNoContent)
+
+	resp = ts.do(getJSON(fmt.Sprintf("/api/v1/games/%d", game.ID), auth))
+	assertStatus(t, resp, http.StatusNotFound)
+}
+
+func TestAPI_Games_Delete_NotFound(t *testing.T) {
+	ts := newTestServer(t)
+	auth := seedAdmin(t, ts)
+
+	resp := ts.do(deleteJSON("/api/v1/games/999999", auth))
+	assertStatus(t, resp, http.StatusNotFound)
+
+	var body struct {
+		Error string `json:"error"`
+	}
+	decodeJSON(t, resp, &body)
+	if body.Error != "game not found" {
+		t.Errorf("error = %q, want %q", body.Error, "game not found")
+	}
+}
+
+func TestAPI_Games_Delete_InvalidID(t *testing.T) {
+	ts := newTestServer(t)
+	auth := seedAdmin(t, ts)
+
+	resp := ts.do(deleteJSON("/api/v1/games/not-a-number", auth))
+	assertStatus(t, resp, http.StatusBadRequest)
+
+	var body struct {
+		Error string `json:"error"`
+	}
+	decodeJSON(t, resp, &body)
+	if body.Error != "invalid game id" {
+		t.Errorf("error = %q, want %q", body.Error, "invalid game id")
+	}
+}
+
+func TestAPI_Games_Update_NotImplemented(t *testing.T) {
+	ts := newTestServer(t)
+	auth := seedAdmin(t, ts)
+	ctx := context.Background()
+	game := ts.fix.NewGame().Name("Alpha").Build(ctx)
+
+	resp := ts.do(putJSON(fmt.Sprintf("/api/v1/games/%d", game.ID), auth, []byte(`{}`)))
+	assertStatus(t, resp, http.StatusNotImplemented)
+
+	var body struct {
+		Error string `json:"error"`
+	}
+	decodeJSON(t, resp, &body)
+	if body.Error != "not yet implemented" {
+		t.Errorf("error = %q, want %q", body.Error, "not yet implemented")
+	}
+}
+
+func TestAPI_Games_AuthRequired(t *testing.T) {
+	ts := newTestServer(t)
+
+	resp := ts.do(getJSON("/api/v1/games", ""))
+	assertStatus(t, resp, http.StatusUnauthorized)
+
+	var body struct {
+		Error string `json:"error"`
+	}
+	decodeJSON(t, resp, &body)
+	if body.Error != "authentication required" {
+		t.Errorf("error = %q, want %q", body.Error, "authentication required")
+	}
+}
+
+func TestAPI_Games_AdminRequired(t *testing.T) {
+	ts := newTestServer(t)
+	ctx := context.Background()
+	user, err := ts.users.Register(ctx, service.RegisterInput{
+		Handle:   "regular",
+		Email:    "regular@example.com",
+		Password: "password123",
+	})
+	if err != nil {
+		t.Fatalf("register user: %v", err)
+	}
+
+	resp := ts.do(getJSON("/api/v1/games", ts.authHeader(t, user.ID)))
+	assertStatus(t, resp, http.StatusForbidden)
+
+	var body struct {
+		Error string `json:"error"`
+	}
+	decodeJSON(t, resp, &body)
+	if body.Error != "forbidden" {
+		t.Errorf("error = %q, want %q", body.Error, "forbidden")
+	}
+}
+

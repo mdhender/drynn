@@ -111,6 +111,10 @@ func tokenFromRequest(c *echo.Context) (string, error) {
 }
 
 func unauthorized(c *echo.Context) error {
+	if strings.HasPrefix(c.Request().URL.Path, "/api/") {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "authentication required"})
+	}
+
 	acceptsHTML := strings.Contains(c.Request().Header.Get(echo.HeaderAccept), "text/html")
 	if acceptsHTML || c.Request().Method == http.MethodGet {
 		return c.Redirect(http.StatusSeeOther, "/signin")

@@ -609,7 +609,7 @@ Run: `go test ./internal/server/...`
 
 ---
 
-## Task BD-7 — API delete / update routes + auth JSON responses [TODO]
+## Task BD-7 — API delete / update routes + auth JSON responses [DONE]
 
 **Depends on:** BD-6
 

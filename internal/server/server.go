@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	drynn "github.com/mdhender/drynn"
@@ -145,6 +146,8 @@ func registerRoutes(
 	apiGamesGroup.POST("", apiHandler.CreateGame)
 	apiGamesGroup.GET("", apiHandler.ListGames)
 	apiGamesGroup.GET("/:id", apiHandler.GetGame)
+	apiGamesGroup.PUT("/:id", apiHandler.UpdateGame)
+	apiGamesGroup.DELETE("/:id", apiHandler.DeleteGame)
 
 	e.GET("/", publicHandler.ShowHome)
 	e.GET("/register", authHandler.ShowRegister)
@@ -239,6 +242,9 @@ func requireRole(role string) echo.MiddlewareFunc {
 		return func(c *echo.Context) error {
 			viewer, ok := auth.CurrentViewer(c)
 			if !ok || !viewer.HasRole(role) {
+				if strings.HasPrefix(c.Request().URL.Path, "/api/") {
+					return c.JSON(http.StatusForbidden, map[string]string{"error": "forbidden"})
+				}
 				return c.String(http.StatusForbidden, "forbidden")
 			}
 

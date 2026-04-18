@@ -79,6 +79,30 @@ func (h *APIHandler) GetGame(c *echo.Context) error {
 	return c.JSON(http.StatusOK, apiGameFromService(game))
 }
 
+func (h *APIHandler) UpdateGame(c *echo.Context) error {
+	if _, err := parseGameID(c); err != nil {
+		return c.JSON(http.StatusBadRequest, apiErrorResponse{Error: "invalid game id"})
+	}
+	return c.JSON(http.StatusNotImplemented, apiErrorResponse{Error: "not yet implemented"})
+}
+
+func (h *APIHandler) DeleteGame(c *echo.Context) error {
+	id, err := parseGameID(c)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, apiErrorResponse{Error: "invalid game id"})
+	}
+
+	if err := h.games.DeleteGame(c.Request().Context(), id); err != nil {
+		if errors.Is(err, service.ErrGameNotFound) {
+			return c.JSON(http.StatusNotFound, apiErrorResponse{Error: "game not found"})
+		}
+		h.logger.Error("api delete game", "error", err)
+		return c.JSON(http.StatusInternalServerError, apiErrorResponse{Error: "internal error"})
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
 func parseGameID(c *echo.Context) (int64, error) {
 	return strconv.ParseInt(c.Param("id"), 10, 64)
 }
