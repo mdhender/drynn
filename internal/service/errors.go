@@ -20,4 +20,7 @@ var (
 	ErrMailgunNotConfigured = errors.New("Mailgun settings have not been configured")
 	ErrPasswordResetInvalid = errors.New("password reset link is invalid or has expired")
 	ErrAccessRequestsDisabled = errors.New("public access requests are disabled")
+	ErrGameNotFound             = errors.New("game not found")
+	ErrInvalidGameName          = errors.New("name is required")
+	ErrGameUpdateNotImplemented = errors.New("not yet implemented")
 )

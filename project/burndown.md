@@ -343,7 +343,7 @@ Run: `go test ./internal/testfixtures/...`
 
 ---
 
-## Task BD-4 — GameService create / get / list [TODO]
+## Task BD-4 — GameService create / get / list [DONE]
 
 **Depends on:** BD-3
 
