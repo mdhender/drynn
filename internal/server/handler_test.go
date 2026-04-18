@@ -95,8 +95,10 @@ func newTestServer(t testing.TB) *testServer {
 	adminH := handler.NewAdminHandler(userSvc, invSvc, pwdSvc, "http://localhost:8080")
 	healthH := handler.NewHealthHandler(pool)
 
+	apiH := handler.NewAPIHandler(userSvc, jwtMgr, nil)
+
 	rl := drynnmiddleware.NewRateLimiter(drynnmiddleware.DefaultAuthRate, drynnmiddleware.DefaultAuthBurst)
-	registerRoutes(e, publicH, authH, appH, adminH, healthH, jwtMgr, userSvc, rl)
+	registerRoutes(e, publicH, authH, appH, adminH, healthH, apiH, jwtMgr, userSvc, rl)
 
 	return &testServer{
 		echo:        e,

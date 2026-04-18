@@ -94,9 +94,11 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	adminHandler := handler.NewAdminHandler(userService, invitationService, passwordResetService, cfg.BaseURL)
 	healthHandler := handler.NewHealthHandler(db)
 
+	apiHandler := handler.NewAPIHandler(userService, jwtManager, logger)
+
 	authRateLimiter := drynnmiddleware.NewRateLimiter(drynnmiddleware.DefaultAuthRate, drynnmiddleware.DefaultAuthBurst)
 
-	registerRoutes(e, publicHandler, authHandler, appHandler, adminHandler, healthHandler, jwtManager, userService, authRateLimiter)
+	registerRoutes(e, publicHandler, authHandler, appHandler, adminHandler, healthHandler, apiHandler, jwtManager, userService, authRateLimiter)
 
 	return &App{cfg: cfg, echo: e, db: db}, nil
 }
@@ -121,6 +123,7 @@ func registerRoutes(
 	appHandler *handler.AppHandler,
 	adminHandler *handler.AdminHandler,
 	healthHandler *handler.HealthHandler,
+	apiHandler *handler.APIHandler,
 	jwtManager *auth.Manager,
 	userService *service.UserService,
 	authRateLimiter *drynnmiddleware.RateLimiter,
@@ -129,6 +132,10 @@ func registerRoutes(
 
 	e.GET("/healthz", healthHandler.Healthz)
 	e.GET("/readyz", healthHandler.Readyz)
+
+	apiGroup := e.Group("/api/v1")
+	apiGroup.GET("/health", apiHandler.Health)
+	apiGroup.POST("/login", apiHandler.Login, authRL)
 
 	e.GET("/", publicHandler.ShowHome)
 	e.GET("/register", authHandler.ShowRegister)

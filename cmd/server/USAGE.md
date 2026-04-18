@@ -8,8 +8,8 @@ HTTP server for drynn. Serves the web application, static assets, and API endpoi
 cmd/server [flags]
 ```
 
-| Flag | Default | Description |
-|------|---------|-------------|
+| Flag       | Default                      | Description                    |
+|------------|------------------------------|--------------------------------|
 | `--config` | `data/var/drynn/server.json` | Path to the server config file |
 
 The default config path is overridden by the `HOBO_CONFIG_PATH` environment variable when set.
@@ -18,14 +18,14 @@ The default config path is overridden by the `HOBO_CONFIG_PATH` environment vari
 
 The server loads configuration from a JSON file written by `cmd/db init-config`, then applies environment variable overrides. Environment variables take precedence over the JSON file.
 
-| JSON field | Environment variable | Default | Description |
-|------------|---------------------|---------|-------------|
-| `app_addr` | `APP_ADDR` | `:8080` | Listen address |
-| `database_url` | `DATABASE_URL` | (required) | PostgreSQL connection string |
-| `data_dir` | `DATA_DIR` | `data/var/drynn/data` | Path for server-managed data files |
-| `jwt_access_ttl` | `JWT_ACCESS_TTL` | `15m` | Access token lifetime |
-| `jwt_refresh_ttl` | `JWT_REFRESH_TTL` | `168h` | Refresh token lifetime |
-| `cookie_secure` | `COOKIE_SECURE` | `false` | Set Secure flag on auth cookies |
+| JSON field        | Environment variable | Default               | Description                        |
+|-------------------|----------------------|-----------------------|------------------------------------|
+| `app_addr`        | `APP_ADDR`           | `:8080`               | Listen address                     |
+| `database_url`    | `DATABASE_URL`       | (required)            | PostgreSQL connection string       |
+| `data_dir`        | `DATA_DIR`           | `data/var/drynn/data` | Path for server-managed data files |
+| `jwt_access_ttl`  | `JWT_ACCESS_TTL`     | `15m`                 | Access token lifetime              |
+| `jwt_refresh_ttl` | `JWT_REFRESH_TTL`    | `168h`                | Refresh token lifetime             |
+| `cookie_secure`   | `COOKIE_SECURE`      | `false`               | Set Secure flag on auth cookies    |
 
 Create or update the initial administrator with `cmd/db seed-admin` — the server itself does not perform any admin bootstrapping.
 
@@ -55,37 +55,37 @@ The server handles `SIGINT` and `SIGTERM`. On receipt, it initiates a graceful s
 
 ### Public (no auth)
 
-| Method | Path | Handler |
-|--------|------|---------|
-| GET | `/` | Landing page |
-| GET | `/register` | Registration form |
-| POST | `/register` | Submit registration |
-| GET | `/signin` | Sign-in form |
-| POST | `/signin` | Submit sign-in |
-| POST | `/logout` | Sign out (clears cookies) |
-| POST | `/refresh` | Refresh access token |
+| Method | Path        | Handler                   |
+|--------|-------------|---------------------------|
+| GET    | `/`         | Landing page              |
+| GET    | `/register` | Registration form         |
+| POST   | `/register` | Submit registration       |
+| GET    | `/signin`   | Sign-in form              |
+| POST   | `/signin`   | Submit sign-in            |
+| POST   | `/logout`   | Sign out (clears cookies) |
+| POST   | `/refresh`  | Refresh access token      |
 
 ### App (auth required)
 
-| Method | Path | Handler |
-|--------|------|---------|
-| GET | `/app` | Redirect to `/app/profile` |
-| GET | `/app/profile` | Profile form |
-| POST | `/app/profile` | Update profile |
+| Method | Path           | Handler                    |
+|--------|----------------|----------------------------|
+| GET    | `/app`         | Redirect to `/app/profile` |
+| GET    | `/app/profile` | Profile form               |
+| POST   | `/app/profile` | Update profile             |
 
 ### Admin (auth + admin role required)
 
-| Method | Path | Handler |
-|--------|------|---------|
-| GET | `/app/admin/users` | List users |
-| GET | `/app/admin/users/new` | Create user form |
-| POST | `/app/admin/users` | Submit create user |
-| GET | `/app/admin/users/:id/edit` | Edit user form |
-| POST | `/app/admin/users/:id` | Submit user update |
-| POST | `/app/admin/users/:id/delete` | Delete user |
+| Method | Path                          | Handler            |
+|--------|-------------------------------|--------------------|
+| GET    | `/app/admin/users`            | List users         |
+| GET    | `/app/admin/users/new`        | Create user form   |
+| POST   | `/app/admin/users`            | Submit create user |
+| GET    | `/app/admin/users/:id/edit`   | Edit user form     |
+| POST   | `/app/admin/users/:id`        | Submit user update |
+| POST   | `/app/admin/users/:id/delete` | Delete user        |
 
 ### Static
 
-| Method | Path | Source |
-|--------|------|--------|
-| GET | `/static/*` | `web/static/` |
+| Method | Path        | Source        |
+|--------|-------------|---------------|
+| GET    | `/static/*` | `web/static/` |
