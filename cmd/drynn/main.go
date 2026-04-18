@@ -195,7 +195,7 @@ func run(args []string) error {
 		},
 	}
 
-	// game (parent command; dispatches to create subcommand)
+	// game (parent command; dispatches to create/list/show/update/delete)
 	gameFlags := ff.NewFlagSet("game").SetParent(serverFlags)
 
 	gameCreateFlags := ff.NewFlagSet("create").SetParent(gameFlags)
@@ -210,13 +210,64 @@ func run(args []string) error {
 		},
 	}
 
+	gameListFlags := ff.NewFlagSet("list").SetParent(gameFlags)
+	gameListCmd := &ff.Command{
+		Name:      "list",
+		Usage:     "list [flags]",
+		ShortHelp: "list all games",
+		Flags:     gameListFlags,
+		Exec: func(ctx context.Context, args []string) error {
+			return runGameList(ctx, &rt)
+		},
+	}
+
+	gameShowFlags := ff.NewFlagSet("show").SetParent(gameFlags)
+	gameShowID := gameShowFlags.StringLong("id", "", "game id")
+	gameShowCmd := &ff.Command{
+		Name:      "show",
+		Usage:     "show --id <id> [flags]",
+		ShortHelp: "show details of a game",
+		Flags:     gameShowFlags,
+		Exec: func(ctx context.Context, args []string) error {
+			return runGameShow(ctx, *gameShowID, &rt)
+		},
+	}
+
+	gameUpdateFlags := ff.NewFlagSet("update").SetParent(gameFlags)
+	gameUpdateID := gameUpdateFlags.StringLong("id", "", "game id")
+	gameUpdateCmd := &ff.Command{
+		Name:      "update",
+		Usage:     "update --id <id> [flags]",
+		ShortHelp: "update a game (not yet implemented)",
+		Flags:     gameUpdateFlags,
+		Exec: func(ctx context.Context, args []string) error {
+			return runGameUpdate(ctx, *gameUpdateID, &rt)
+		},
+	}
+
+	gameDeleteFlags := ff.NewFlagSet("delete").SetParent(gameFlags)
+	gameDeleteID := gameDeleteFlags.StringLong("id", "", "game id")
+	gameDeleteCmd := &ff.Command{
+		Name:      "delete",
+		Usage:     "delete --id <id> [flags]",
+		ShortHelp: "delete a game",
+		Flags:     gameDeleteFlags,
+		Exec: func(ctx context.Context, args []string) error {
+			return runGameDelete(ctx, *gameDeleteID, &rt)
+		},
+	}
+
 	gameCmd := &ff.Command{
 		Name:      "game",
 		Usage:     "game <command> [flags]",
-		ShortHelp: "manage games",
+		ShortHelp: "manage games (create, list, show, update, delete)",
 		Flags:     gameFlags,
 		Subcommands: []*ff.Command{
 			gameCreateCmd,
+			gameListCmd,
+			gameShowCmd,
+			gameUpdateCmd,
+			gameDeleteCmd,
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			gameUsage()
@@ -281,7 +332,7 @@ func run(args []string) error {
 		}
 		rt.session = session
 		rt.serverURL = serverURL
-	case healthCmd, gameCmd, gameCreateCmd:
+	case healthCmd, gameCmd, gameCreateCmd, gameListCmd, gameShowCmd, gameUpdateCmd, gameDeleteCmd:
 		session, err := loadSession()
 		if err != nil {
 			return err
@@ -305,7 +356,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  logout    clear the current session")
 	fmt.Fprintln(os.Stderr, "  health    check server health")
 	fmt.Fprintln(os.Stderr, "  version   print the build version")
-	fmt.Fprintln(os.Stderr, "  game      manage games")
+	fmt.Fprintln(os.Stderr, "  game      manage games (create, list, show, update, delete)")
 }
 
 func gameUsage() {
@@ -313,6 +364,10 @@ func gameUsage() {
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "commands:")
 	fmt.Fprintln(os.Stderr, "  create    create a new game from a config file")
+	fmt.Fprintln(os.Stderr, "  list      list all games")
+	fmt.Fprintln(os.Stderr, "  show      show details of a game")
+	fmt.Fprintln(os.Stderr, "  update    update a game (not yet implemented)")
+	fmt.Fprintln(os.Stderr, "  delete    delete a game")
 }
 
 func printLeafUsage(cmd *ff.Command) {

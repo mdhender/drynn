@@ -781,7 +781,7 @@ Run: `go test ./cmd/drynn/...`
 
 ---
 
-## Task BD-9 — CLI list / show / delete / update + help text [TODO]
+## Task BD-9 — CLI list / show / delete / update + help text [DONE]
 
 **Depends on:** BD-8
 
