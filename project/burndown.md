@@ -131,7 +131,7 @@ Run: `go test ./cmd/db/...`
 
 ---
 
-## Task BD-2 — Migrate `cmd/drynn` to `ff/v4` [TODO]
+## Task BD-2 — Migrate `cmd/drynn` to `ff/v4` [DONE]
 
 **Depends on:** BD-1 (so that `go.mod` already has the `ff/v4` dependency)
 
