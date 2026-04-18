@@ -17,6 +17,7 @@ import (
 
 	drynn "github.com/mdhender/drynn"
 	"github.com/mdhender/drynn/internal/config"
+	"github.com/mdhender/drynn/internal/worldgen"
 )
 
 var httpClient = &http.Client{Timeout: 10 * time.Second}
@@ -195,6 +196,26 @@ func run(args []string) error {
 		},
 	}
 
+	// test-points (no shared parent — standalone diagnostic)
+	testPointsFlags := ff.NewFlagSet("test-points")
+	testPointsGen := testPointsFlags.StringLong("generator", "uniformSphere", "point generator: naive, naiveDisk, uniformDisk, uniformSphere")
+	testPointsNumber := testPointsFlags.IntLong("count", 100, "number of points")
+	testPointsOut := testPointsFlags.StringLong("out", ".", "output directory for the generated HTML")
+	testPointsCmd := &ff.Command{
+		Name:      "test-points",
+		Usage:     "test-points [flags]",
+		ShortHelp: "render a worldgen point generator to an HTML/SVG preview",
+		Flags:     testPointsFlags,
+		Exec: func(ctx context.Context, args []string) error {
+			switch *testPointsGen {
+			case "naive", "naiveDisk", "uniformDisk", "uniformSphere":
+			default:
+				return fmt.Errorf("unknown generator %q (want naive, naiveDisk, uniformDisk, or uniformSphere)", *testPointsGen)
+			}
+			return worldgen.TestPointsGenerator(*testPointsNumber, *testPointsGen, *testPointsOut)
+		},
+	}
+
 	// game (parent command; dispatches to create/list/show/update/delete)
 	gameFlags := ff.NewFlagSet("game").SetParent(serverFlags)
 
@@ -289,6 +310,7 @@ func run(args []string) error {
 			logoutCmd,
 			healthCmd,
 			versionCmd,
+			testPointsCmd,
 			gameCmd,
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -352,11 +374,12 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "usage: %s <command> [flags]\n", os.Args[0])
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "commands:")
-	fmt.Fprintln(os.Stderr, "  login     authenticate with the server")
-	fmt.Fprintln(os.Stderr, "  logout    clear the current session")
-	fmt.Fprintln(os.Stderr, "  health    check server health")
-	fmt.Fprintln(os.Stderr, "  version   print the build version")
-	fmt.Fprintln(os.Stderr, "  game      manage games (create, list, show, update, delete)")
+	fmt.Fprintln(os.Stderr, "  login        authenticate with the server")
+	fmt.Fprintln(os.Stderr, "  logout       clear the current session")
+	fmt.Fprintln(os.Stderr, "  health       check server health")
+	fmt.Fprintln(os.Stderr, "  version      print the build version")
+	fmt.Fprintln(os.Stderr, "  test-points  render a worldgen point generator to an HTML/SVG preview")
+	fmt.Fprintln(os.Stderr, "  game         manage games (create, list, show, update, delete)")
 }
 
 func gameUsage() {
