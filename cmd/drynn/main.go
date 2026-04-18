@@ -195,6 +195,38 @@ func run(args []string) error {
 		},
 	}
 
+	// game (parent command; dispatches to create subcommand)
+	gameFlags := ff.NewFlagSet("game").SetParent(serverFlags)
+
+	gameCreateFlags := ff.NewFlagSet("create").SetParent(gameFlags)
+	gameCreateFile := gameCreateFlags.StringLong("file", "", "path to game config JSON file")
+	gameCreateCmd := &ff.Command{
+		Name:      "create",
+		Usage:     "create --file <path> [flags]",
+		ShortHelp: "create a new game from a config file",
+		Flags:     gameCreateFlags,
+		Exec: func(ctx context.Context, args []string) error {
+			return runGameCreate(ctx, *gameCreateFile, &rt)
+		},
+	}
+
+	gameCmd := &ff.Command{
+		Name:      "game",
+		Usage:     "game <command> [flags]",
+		ShortHelp: "manage games",
+		Flags:     gameFlags,
+		Subcommands: []*ff.Command{
+			gameCreateCmd,
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			gameUsage()
+			if len(args) == 0 || args[0] == "help" {
+				return ff.ErrHelp
+			}
+			return fmt.Errorf("unknown game command %q", args[0])
+		},
+	}
+
 	// root (dispatches to subcommands; fallback prints usage or unknown-command error)
 	rootFlags := ff.NewFlagSet("drynn")
 	rootCmd := &ff.Command{
@@ -206,6 +238,7 @@ func run(args []string) error {
 			logoutCmd,
 			healthCmd,
 			versionCmd,
+			gameCmd,
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			usage()
@@ -248,7 +281,7 @@ func run(args []string) error {
 		}
 		rt.session = session
 		rt.serverURL = serverURL
-	case healthCmd:
+	case healthCmd, gameCmd, gameCreateCmd:
 		session, err := loadSession()
 		if err != nil {
 			return err
@@ -272,6 +305,14 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  logout    clear the current session")
 	fmt.Fprintln(os.Stderr, "  health    check server health")
 	fmt.Fprintln(os.Stderr, "  version   print the build version")
+	fmt.Fprintln(os.Stderr, "  game      manage games")
+}
+
+func gameUsage() {
+	fmt.Fprintf(os.Stderr, "usage: %s game <command> [flags]\n", os.Args[0])
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "commands:")
+	fmt.Fprintln(os.Stderr, "  create    create a new game from a config file")
 }
 
 func printLeafUsage(cmd *ff.Command) {

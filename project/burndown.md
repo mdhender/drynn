@@ -684,7 +684,7 @@ Run: `go test ./internal/server/... ./internal/auth/...`
 
 ---
 
-## Task BD-8 — CLI `game create` command [TODO]
+## Task BD-8 — CLI `game create` command [DONE]
 
 **Depends on:** BD-2, BD-7
 
