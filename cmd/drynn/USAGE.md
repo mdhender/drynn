@@ -84,3 +84,85 @@ Prints the build version and exits.
 ```
 drynn version
 ```
+
+## game
+
+Parent command for managing games via the API. All subcommands require an active session (run `drynn login` first) and an admin account on the server.
+
+```
+drynn game <command> [flags]
+```
+
+| Subcommand | Description                              |
+|------------|------------------------------------------|
+| `create`   | create a new game from a config file     |
+| `list`     | list all games                           |
+| `show`     | show details of a game                   |
+| `update`   | update a game (not yet implemented)      |
+| `delete`   | delete a game                            |
+
+All subcommands inherit `--server` and `--config` from the top-level server URL resolution rules. Responses from the server are printed to stdout verbatim (JSON). Errors returned by the server are surfaced using the `error` field from the response body.
+
+### game create
+
+Creates a game by POSTing the contents of a JSON config file to `/api/v1/games`.
+
+```
+drynn game create --file <path> [flags]
+```
+
+| Flag     | Default | Description                                 |
+|----------|---------|---------------------------------------------|
+| `--file` | *(required)* | Path to a JSON config file             |
+| `--server` | `""`  | Server URL                                  |
+| `--config` | `""`  | Path to the server config file              |
+
+The file body is forwarded verbatim — the CLI does not decode it. This preserves forward compatibility: unknown fields added to the config schema (seeds, world-gen inputs) flow through without CLI changes. JSON validity is checked client-side before sending.
+
+On success (HTTP 201), the response body (`{"id":N}`) is printed.
+
+### game list
+
+Lists all games.
+
+```
+drynn game list [flags]
+```
+
+Prints the JSON array returned by `GET /api/v1/games`.
+
+### game show
+
+Fetches a single game by ID.
+
+```
+drynn game show --id <id> [flags]
+```
+
+| Flag    | Default | Description          |
+|---------|---------|----------------------|
+| `--id`  | *(required)* | Game ID        |
+
+Prints the JSON object returned by `GET /api/v1/games/:id`.
+
+### game update
+
+Reserved for future use. Currently the server returns `501 not yet implemented` and the CLI surfaces that message as an error.
+
+```
+drynn game update --id <id> [flags]
+```
+
+### game delete
+
+Deletes a game by ID.
+
+```
+drynn game delete --id <id> [flags]
+```
+
+| Flag    | Default | Description          |
+|---------|---------|----------------------|
+| `--id`  | *(required)* | Game ID        |
+
+On success (HTTP 204), prints `deleted`.

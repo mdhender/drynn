@@ -3,8 +3,10 @@ title: CLI
 weight: 20
 ---
 
-Drynn ships three binaries: `cmd/server`, `cmd/db`, and
-`cmd/email`. All read the same config file.
+Drynn ships four binaries: `cmd/server`, `cmd/db`, `cmd/email`,
+and `cmd/drynn`. The server, db, and email CLIs read the same
+server config file. `cmd/drynn` is a pure HTTP client — it talks
+to a running server and never touches the database directly.
 
 ## cmd/server
 
@@ -206,3 +208,37 @@ configured in the config file.
 ### version
 
 Prints the application version.
+
+---
+
+## cmd/drynn
+
+Administrator CLI. Authenticates once with the server and stores
+a session in `~/.config/drynn/drynn.json`; subsequent commands reuse
+the saved server URL and tokens automatically.
+
+```
+cmd/drynn <command> [flags]
+```
+
+Commands that contact the server resolve the URL in this order:
+`--server` flag, `DRYNN_SERVER_URL`, `base_url` from `--config`,
+then the `server_url` stored in the session.
+
+| Command | Description |
+|---------|-------------|
+| `login` | Authenticate with the server and save the session |
+| `logout` | Clear the access and refresh tokens |
+| `health` | Query `GET /api/v1/health` |
+| `version` | Print the build version |
+| `game create` | Create a game from a JSON config file |
+| `game list` | List all games |
+| `game show` | Fetch one game by ID |
+| `game update` | Reserved; currently returns `501 not yet implemented` |
+| `game delete` | Delete a game by ID |
+
+All `game` subcommands require an active session and an admin
+account on the server.
+
+See [`cmd/drynn/USAGE.md`](https://github.com/mdhender/drynn/blob/main/cmd/drynn/USAGE.md)
+for per-flag details.

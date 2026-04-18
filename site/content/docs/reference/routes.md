@@ -71,6 +71,50 @@ Returns 403 if the user lacks the `admin` role.
 | POST | `/app/admin/invitations/:id/resend` | `ResendInvitation` | Resend invitation |
 | POST | `/app/admin/invitations/:id/archive` | `ArchiveInvitation` | Archive invitation |
 
+## API routes
+
+Routes mounted under `/api/v1`. Consumed by the `drynn` CLI and
+future external clients. All responses are JSON.
+
+### Public API
+
+| Method | Path | Handler | Notes |
+|--------|------|---------|-------|
+| GET | `/api/v1/health` | `Health` | Returns `{"status":"ok","version":"..."}` |
+| POST | `/api/v1/login` | `Login` | Rate limited; returns access and refresh tokens |
+
+### Admin API — games
+
+Middleware: `RequireAuth` (validates JWT Bearer header) +
+`loadCurrentViewer` + `requireRole("admin")`.
+
+Unlike the browser-facing routes, these return JSON error responses
+rather than HTML redirects:
+
+- `401 {"error":"authentication required"}` when the Bearer token is missing or invalid
+- `403 {"error":"forbidden"}` when the user lacks the `admin` role
+
+| Method | Path | Handler | Description |
+|--------|------|---------|-------------|
+| POST | `/api/v1/games` | `CreateGame` | Create a game (`{"name":"..."}`) → `201 {"id":N}` |
+| GET | `/api/v1/games` | `ListGames` | List all games → `200 [...]` |
+| GET | `/api/v1/games/:id` | `GetGame` | Fetch one game → `200 {...}` |
+| PUT | `/api/v1/games/:id` | `UpdateGame` | Reserved; currently `501 {"error":"not yet implemented"}` |
+| DELETE | `/api/v1/games/:id` | `DeleteGame` | Delete a game → `204 No Content` |
+
+### Standardized API error responses
+
+| Message                   | HTTP status |
+|---------------------------|-------------|
+| `invalid request body`    | 400         |
+| `name is required`        | 400         |
+| `invalid game id`         | 400         |
+| `authentication required` | 401         |
+| `forbidden`               | 403         |
+| `game not found`          | 404         |
+| `not yet implemented`     | 501         |
+| `internal error`          | 500         |
+
 ## Static assets
 
 | Method | Path | Source |
