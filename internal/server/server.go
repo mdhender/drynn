@@ -37,6 +37,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	}
 
 	userService := service.NewUserService(db)
+	gameService := service.NewGameService(db)
 	invitationService := service.NewInvitationService(db, cfg.Mailgun)
 	passwordResetService := service.NewPasswordResetService(db, cfg.Mailgun)
 	accessRequestService := service.NewAccessRequestService(cfg.Mailgun, cfg.AdminContactEmail)
@@ -94,7 +95,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	adminHandler := handler.NewAdminHandler(userService, invitationService, passwordResetService, cfg.BaseURL)
 	healthHandler := handler.NewHealthHandler(db)
 
-	apiHandler := handler.NewAPIHandler(userService, jwtManager, logger)
+	apiHandler := handler.NewAPIHandler(userService, gameService, jwtManager, logger)
 
 	authRateLimiter := drynnmiddleware.NewRateLimiter(drynnmiddleware.DefaultAuthRate, drynnmiddleware.DefaultAuthBurst)
 
@@ -136,6 +137,14 @@ func registerRoutes(
 	apiGroup := e.Group("/api/v1")
 	apiGroup.GET("/health", apiHandler.Health)
 	apiGroup.POST("/login", apiHandler.Login, authRL)
+
+	apiGamesGroup := apiGroup.Group("/games")
+	apiGamesGroup.Use(auth.RequireAuth(jwtManager))
+	apiGamesGroup.Use(loadCurrentViewer(userService))
+	apiGamesGroup.Use(requireRole(service.RoleAdmin))
+	apiGamesGroup.POST("", apiHandler.CreateGame)
+	apiGamesGroup.GET("", apiHandler.ListGames)
+	apiGamesGroup.GET("/:id", apiHandler.GetGame)
 
 	e.GET("/", publicHandler.ShowHome)
 	e.GET("/register", authHandler.ShowRegister)

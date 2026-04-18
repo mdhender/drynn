@@ -29,13 +29,14 @@ import (
 // ---------------------------------------------------------------------------
 
 type testServer struct {
-	echo       *echo.Echo
-	pool       *pgxpool.Pool
-	fix        *testfixtures.Fixtures
-	jwt        *auth.Manager
-	users      *service.UserService
+	echo        *echo.Echo
+	pool        *pgxpool.Pool
+	fix         *testfixtures.Fixtures
+	jwt         *auth.Manager
+	users       *service.UserService
+	games       *service.GameService
 	invitations *service.InvitationService
-	recorder   *templateRecorder
+	recorder    *templateRecorder
 }
 
 type renderCall struct {
@@ -73,6 +74,7 @@ func newTestServer(t testing.TB) *testServer {
 	fix := testfixtures.New(t, pool)
 
 	userSvc := service.NewUserService(pool)
+	gameSvc := service.NewGameService(pool)
 	invSvc := service.NewInvitationService(pool, email.MailgunConfig{})
 	pwdSvc := service.NewPasswordResetService(pool, email.MailgunConfig{})
 	accessSvc := service.NewAccessRequestService(email.MailgunConfig{}, "")
@@ -95,7 +97,7 @@ func newTestServer(t testing.TB) *testServer {
 	adminH := handler.NewAdminHandler(userSvc, invSvc, pwdSvc, "http://localhost:8080")
 	healthH := handler.NewHealthHandler(pool)
 
-	apiH := handler.NewAPIHandler(userSvc, jwtMgr, nil)
+	apiH := handler.NewAPIHandler(userSvc, gameSvc, jwtMgr, nil)
 
 	rl := drynnmiddleware.NewRateLimiter(drynnmiddleware.DefaultAuthRate, drynnmiddleware.DefaultAuthBurst)
 	registerRoutes(e, publicH, authH, appH, adminH, healthH, apiH, jwtMgr, userSvc, rl)
@@ -106,9 +108,21 @@ func newTestServer(t testing.TB) *testServer {
 		fix:         fix,
 		jwt:         jwtMgr,
 		users:       userSvc,
+		games:       gameSvc,
 		invitations: invSvc,
 		recorder:    rec,
 	}
+}
+
+// authHeader issues a JWT access token and returns an Authorization
+// header value ("Bearer <token>") for use in API requests.
+func (ts *testServer) authHeader(t testing.TB, userID uuid.UUID) string {
+	t.Helper()
+	pair, err := ts.jwt.IssueTokens(context.Background(), userID)
+	if err != nil {
+		t.Fatalf("issue tokens: %v", err)
+	}
+	return "Bearer " + pair.AccessToken
 }
 
 // do executes a request against the echo router and returns the response.

@@ -477,7 +477,7 @@ Run: `go test ./internal/service/...`
 
 ---
 
-## Task BD-6 — API handler create / list / show + route wiring [TODO]
+## Task BD-6 — API handler create / list / show + route wiring [DONE]
 
 **Depends on:** BD-5
 

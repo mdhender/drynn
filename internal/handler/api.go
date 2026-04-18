@@ -17,16 +17,23 @@ import (
 
 type APIHandler struct {
 	users      *service.UserService
+	games      *service.GameService
 	jwtManager *auth.Manager
 	logger     *slog.Logger
 }
 
-func NewAPIHandler(users *service.UserService, jwtManager *auth.Manager, logger *slog.Logger) *APIHandler {
+func NewAPIHandler(
+	users *service.UserService,
+	games *service.GameService,
+	jwtManager *auth.Manager,
+	logger *slog.Logger,
+) *APIHandler {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return &APIHandler{
 		users:      users,
+		games:      games,
 		jwtManager: jwtManager,
 		logger:     logger,
 	}
