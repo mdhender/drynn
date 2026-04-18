@@ -10,6 +10,7 @@ require (
 	github.com/labstack/echo/v5 v5.1.0
 	github.com/mailgun/mailgun-go/v4 v4.23.0
 	github.com/maloquacious/semver v0.4.0
+	github.com/peterbourgon/ff/v4 v4.0.0-beta.1
 	github.com/testcontainers/testcontainers-go v0.42.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.42.0
 	golang.org/x/crypto v0.48.0
