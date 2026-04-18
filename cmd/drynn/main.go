@@ -208,7 +208,7 @@ func run(args []string) error {
 		Flags:     testPointsFlags,
 		Exec: func(ctx context.Context, args []string) error {
 			switch *testPointsGen {
-			case "naive", "naiveDisk", "uniformDisk", "uniformSphere":
+			case "naiveDisk", "naiveSphere", "uniformDisk", "uniformSphere":
 			default:
 				return fmt.Errorf("unknown generator %q (want naive, naiveDisk, uniformDisk, or uniformSphere)", *testPointsGen)
 			}

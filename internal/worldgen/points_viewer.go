@@ -7,6 +7,7 @@ import (
 	"cmp"
 	"fmt"
 	"html"
+	"math"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
@@ -16,10 +17,10 @@ import (
 func TestPointsGenerator(n int, g string, p string) error {
 	var pg pointGenerator
 	switch g {
-	case "naive":
-		pg = &naivePointsGenerator{}
 	case "naiveDisk":
 		pg = &naiveDiskPointsGenerator{}
+	case "naiveSphere":
+		pg = &naiveSpherePointsGenerator{}
 	case "uniformDisk":
 		pg = &uniformDiskPointsGenerator{}
 	case "uniformSphere":
@@ -29,7 +30,7 @@ func TestPointsGenerator(n int, g string, p string) error {
 	}
 	r := rand.New(rand.NewPCG(10, 10))
 	set := pg.Generate(n, r)
-	err := os.WriteFile(filepath.Join(p, g+".html"), renderPointsHTML(set, p, true), 0o644)
+	err := os.WriteFile(filepath.Join(p, g+".html"), renderPointsHTML(set, filepath.Join(p, g), true), 0o644)
 	return err
 }
 
@@ -135,15 +136,11 @@ func writePointsSVG(buf *bytes.Buffer, points []point, escapedTitle string, widt
 	fmt.Fprintf(buf, `  <rect x="0" y="0" width="%d" height="%d" fill="white"/>`+"\n", width, height)
 	fmt.Fprintf(buf, `  <text x="24" y="22" font-family="system-ui, sans-serif" font-size="15" fill="#222">%s</text>`+"\n", escapedTitle)
 
-	corners := []point{
-		{x: -1, y: -1, z: 0},
-		{x: +1, y: -1, z: 0},
-		{x: +1, y: +1, z: 0},
-		{x: -1, y: +1, z: 0},
-	}
+	const circleSegments = 72
 	fmt.Fprint(buf, `  <polygon points="`)
-	for i, c := range corners {
-		bx, by, _, _ := projectMain(c)
+	for i := range circleSegments {
+		theta := 2 * math.Pi * float64(i) / circleSegments
+		bx, by, _, _ := projectMain(point{x: math.Cos(theta), y: math.Sin(theta)})
 		if i > 0 {
 			buf.WriteByte(' ')
 		}

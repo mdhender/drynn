@@ -104,62 +104,6 @@ func sortPoints(points []point) {
 	})
 }
 
-type naivePointsGenerator struct{}
-
-// Generate returns n points uniformly distributed in the closed unit ball
-// via rejection sampling from the enclosing cube [-1, 1]³. Roughly 48% of
-// candidates are rejected (the cube has volume 8 vs. the ball's 4π/3 ≈ 4.19),
-// so expect ~1.91·n RNG draws per point on average.
-func (pg naivePointsGenerator) Generate(n int, r *rand.Rand) []point {
-	if n <= 0 {
-		return nil
-	}
-	points := make([]point, 0, n)
-	for len(points) < n {
-		x := 2*r.Float64() - 1
-		y := 2*r.Float64() - 1
-		z := 2*r.Float64() - 1
-		if x*x+y*y+z*z <= 1 {
-			points = append(points, point{x: x, y: y, z: z})
-		}
-	}
-	return points
-}
-
-type uniformSpherePointsGenerator struct{}
-
-// Generate returns n points uniformly distributed in the closed unit ball
-// by direct sampling. Each point consumes exactly three RNG draws.
-//
-// Method: sample a direction uniformly on S², then a radius whose CDF makes
-// the volume density constant.
-//
-//   - Direction: draw cosθ uniformly in [-1, 1] and φ uniformly in [0, 2π).
-//     The sinθ factor in the spherical-area element dA = sinθ dθ dφ is
-//     exactly the Jacobian of the substitution u = cosθ, so uniform cosθ
-//     gives area-uniform coverage of the unit sphere.
-//   - Radius: the ball's volume grows as r³, so P(R ≤ r) = r³ and the
-//     inverse CDF is r = U^(1/3) with U uniform in [0, 1). Sampling r
-//     uniformly would over-sample the origin.
-func (pg uniformSpherePointsGenerator) Generate(n int, r *rand.Rand) []point {
-	if n <= 0 {
-		return nil
-	}
-	points := make([]point, 0, n)
-	for range n {
-		cosTheta := 1 - 2*r.Float64()
-		sinTheta := math.Sqrt(1 - cosTheta*cosTheta)
-		phi := 2 * math.Pi * r.Float64()
-		radius := math.Cbrt(r.Float64())
-		points = append(points, point{
-			x: radius * sinTheta * math.Cos(phi),
-			y: radius * sinTheta * math.Sin(phi),
-			z: radius * cosTheta,
-		})
-	}
-	return points
-}
-
 type naiveDiskPointsGenerator struct{}
 
 // Generate returns n points produced by uniformSpherePointsGenerator with
@@ -177,6 +121,28 @@ func (pg naiveDiskPointsGenerator) Generate(n int, r *rand.Rand) []point {
 	points := uniformSpherePointsGenerator{}.Generate(n, r)
 	for i := range points {
 		points[i].z = 0
+	}
+	return points
+}
+
+type naiveSpherePointsGenerator struct{}
+
+// Generate returns n points uniformly distributed in the closed unit ball
+// via rejection sampling from the enclosing cube [-1, 1]³. Roughly 48% of
+// candidates are rejected (the cube has volume 8 vs. the ball's 4π/3 ≈ 4.19),
+// so expect ~1.91·n RNG draws per point on average.
+func (pg naiveSpherePointsGenerator) Generate(n int, r *rand.Rand) []point {
+	if n <= 0 {
+		return nil
+	}
+	points := make([]point, 0, n)
+	for len(points) < n {
+		x := 2*r.Float64() - 1
+		y := 2*r.Float64() - 1
+		z := 2*r.Float64() - 1
+		if x*x+y*y+z*z <= 1 {
+			points = append(points, point{x: x, y: y, z: z})
+		}
 	}
 	return points
 }
@@ -217,6 +183,40 @@ func (pg uniformDiskPointsGenerator) Generate(n int, r *rand.Rand) []point {
 			x: radius * math.Cos(phi),
 			y: radius * math.Sin(phi),
 			z: 0,
+		})
+	}
+	return points
+}
+
+type uniformSpherePointsGenerator struct{}
+
+// Generate returns n points uniformly distributed in the closed unit ball
+// by direct sampling. Each point consumes exactly three RNG draws.
+//
+// Method: sample a direction uniformly on S², then a radius whose CDF makes
+// the volume density constant.
+//
+//   - Direction: draw cosθ uniformly in [-1, 1] and φ uniformly in [0, 2π).
+//     The sinθ factor in the spherical-area element dA = sinθ dθ dφ is
+//     exactly the Jacobian of the substitution u = cosθ, so uniform cosθ
+//     gives area-uniform coverage of the unit sphere.
+//   - Radius: the ball's volume grows as r³, so P(R ≤ r) = r³ and the
+//     inverse CDF is r = U^(1/3) with U uniform in [0, 1). Sampling r
+//     uniformly would over-sample the origin.
+func (pg uniformSpherePointsGenerator) Generate(n int, r *rand.Rand) []point {
+	if n <= 0 {
+		return nil
+	}
+	points := make([]point, 0, n)
+	for range n {
+		cosTheta := 1 - 2*r.Float64()
+		sinTheta := math.Sqrt(1 - cosTheta*cosTheta)
+		phi := 2 * math.Pi * r.Float64()
+		radius := math.Cbrt(r.Float64())
+		points = append(points, point{
+			x: radius * sinTheta * math.Cos(phi),
+			y: radius * sinTheta * math.Sin(phi),
+			z: radius * cosTheta,
 		})
 	}
 	return points
