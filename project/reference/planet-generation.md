@@ -195,13 +195,13 @@ gravity            = 93 + roll(1, 11) + roll(1, 11) + roll(1, 5)  // 97–120
 temperature_class  = 9 + roll(1, 3)                         // 10–12
 pressure_class     = 8 + roll(1, 3)                         // 9–11
 mining_difficulty   = 208 + roll(1, 11) + roll(1, 11)        // 210–230
-special            = 1   // candidate ideal home planet
+special            = IDEAL_HOME_PLANET
 ```
 
 Generate atmosphere:
 
 ```
-slot = 1
+slot = 0
 total_percent = 0
 
 // 1-in-3 chance of ammonia
@@ -234,7 +234,7 @@ gas[nitro_slot] = N2
 gas_percent[nitro_slot] = 100 - total_percent
 ```
 
-Any unused gas slots (3rd and 4th) are set to gas=0, gas_percent=0.
+Any remaining gas slots are set to gas=0, gas_percent=0.
 
 After this override, **skip** the remaining steps (pressure class, atmosphere,
 mining difficulty) for this planet and proceed to the next planet.
@@ -327,12 +327,12 @@ For each gas index `i` from `first_gas` to `first_gas + 4`:
      - If `i == O2`, quantity = `roll(1, 50)`.
      - Else, quantity = `roll(1, 100)`.
 4. When a gas is added:
-   ```
-   num_gases_found++
-   gas[num_gases_found] = gas_id
-   gas_percent[num_gases_found] = quantity
-   gas_quantity += quantity
-   ```
+    ```
+    gas[num_gases_found] = gas_id
+    gas_percent[num_gases_found] = quantity
+    gas_quantity += quantity
+    num_gases_found++
+    ```
 
 > The outer "repeat until `num_gases_found > 0`" ensures at least one gas
 > is always selected. If the inner loop finishes without finding any gas,
@@ -342,12 +342,12 @@ For each gas index `i` from `first_gas` to `first_gas + 4`:
 
 ```
 total_percent = 0
-for each found gas slot i (1 to num_gases_found):
+for each found gas slot i (0 to num_gases_found - 1):
     gas_percent[i] = (100 * gas_percent[i]) / gas_quantity
     total_percent += gas_percent[i]
 
 // give any rounding remainder to the first gas
-gas_percent[1] += 100 - total_percent
+gas_percent[0] += 100 - total_percent
 ```
 
 #### Step 13 — Compute Mining Difficulty
@@ -391,8 +391,8 @@ planet.mining_difficulty  = mining_difficulty
 planet.temperature_class  = temperature_class
 planet.pressure_class     = pressure_class
 planet.special            = special
-planet.gas[0..3]          = gas[1..4]       // note: offset by 1
-planet.gas_percent[0..3]  = gas_percent[1..4]
+planet.gas[0..3]          = gas[0..3]
+planet.gas_percent[0..3]  = gas_percent[0..3]
 ```
 
 All other fields (`econ_efficiency`, `md_increase`) are initialized to
@@ -400,7 +400,7 @@ zero.
 
 ## Home System Viability Check
 
-If any planet in the system has `special == 1` (candidate ideal home planet),
+If any planet in the system has `special == IDEAL_HOME_PLANET`,
 a viability score is computed across **all** planets in the system.
 
 ### LSN Function
@@ -442,7 +442,7 @@ func LSN(candidate, home_planet) -> int:
 ### Viability Score
 
 ```
-home_planet = the planet with special == 1
+home_planet = the planet with special == IDEAL_HOME_PLANET
 potential = 0
 
 for each planet in system:
@@ -452,8 +452,8 @@ for each planet in system:
 The system is a viable home system only if `potential > 53 AND potential < 57`.
 
 If the viability check fails, clear the `special` flag on the candidate planet
-(set `special = 0`) and mark the system as **not** a potential home system.
+(set `special = NOT_SPECIAL`) and mark the system as **not** a potential home system.
 
 > **Note:** During galaxy creation, `earth_like` is `false`, so no planet will
-> have `special == 1` and this check will never trigger. The viability check
+> have `special == IDEAL_HOME_PLANET` and this check will never trigger. The viability check
 > is relevant only when generating home system templates.

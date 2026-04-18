@@ -79,12 +79,12 @@ MAX_PLANETS  = 9 * MAX_STARS    // 9000
 
 ### Planet Special
 
-| Value | Meaning                |
-|-------|------------------------|
-| 0     | Not special            |
-| 1     | Ideal home planet      |
-| 2     | Ideal colony planet    |
-| 3     | Radioactive hell-hole  |
+| Name               | Value | Meaning                |
+|--------------------|-------|------------------------|
+| NOT_SPECIAL        | 0     | Not special            |
+| IDEAL_HOME_PLANET  | 1     | Ideal home planet      |
+| IDEAL_COLONY       | 2     | Ideal colony planet    |
+| RADIOACTIVE_HELL   | 3     | Radioactive hell-hole  |
 
 ## Type Definitions
 
@@ -116,7 +116,7 @@ Star {
     worm_y         int        //   (only meaningful when worm_here is true)
     worm_z         int
     planet_index   int        // index of the first planet in the global planets array
-    visited_by     []uint32   // bit-set; bit N is set if species N has visited
+    visited_by     set of int // set of species numbers that have visited
     planets        []Planet   // the planets orbiting this star
 }
 ```

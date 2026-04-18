@@ -120,7 +120,7 @@ Notes:
 ```
 ls_needed = 3 * (tc_diff + pc_diff + poison_count)
 
-if has_required_gas == false:
+if NOT has_required_gas:
     ls_needed += 3
 ```
 

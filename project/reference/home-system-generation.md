@@ -31,10 +31,10 @@ HP_AVAILABLE_POP = 1500   // initial population units on home planet
 
 ### Named Planet Status Flags
 
-| Name        | Value | Description                  |
-|-------------|-------|------------------------------|
-| HOME_PLANET | 1     | Bit flag: planet is a home   |
-| POPULATED   | 8     | Bit flag: planet has people  |
+| Name        | Description                  |
+|-------------|------------------------------|
+| HOME_PLANET | Planet is a species' home    |
+| POPULATED   | Planet has population        |
 
 ### Tech Level Indices
 
@@ -71,7 +71,7 @@ Species {
 NamedPlanet {
     name              string     // planet name (5–31 characters)
     x, y, z, pn      int        // coordinates and orbit
-    status            int        // bit flags (HOME_PLANET | POPULATED, etc.)
+    status            set of StatusFlag   // e.g., {HOME_PLANET, POPULATED}
     planet_index      int        // index into global planets array
     mi_base           int        // mining base × 10
     ma_base           int        // manufacturing base × 10
@@ -114,7 +114,7 @@ follows the algorithm in [planet-creation.md](planet-creation.md). The
 viability check is also specified there (see "Home System Viability Check").
 
 The "repeat until viability check passes" loop means that planets are
-regenerated from scratch until the system produces a `special == 1` planet
+regenerated from scratch until the system produces a `special == IDEAL_HOME_PLANET` planet
 **and** the viability score falls in the range `(53, 57)` exclusive.
 
 ## Phase 2 — System Selection
@@ -124,7 +124,7 @@ into a home system.
 
 ### Step 1 — Find Existing Home Systems
 
-Scan all star systems for planets with `special == 1` (ideal home planet)
+Scan all star systems for planets with `special == IDEAL_HOME_PLANET`
 that are not already claimed by another species. A system is "claimed" if
 any existing species has its home coordinates matching the system.
 
@@ -326,11 +326,11 @@ for each gas slot i in 0..3:
 Helium and water are always neutral:
 
 ```
-if good_gas[HE] == false:
+if NOT good_gas[HE]:
     good_gas[HE] = true
     num_neutral++
 
-if good_gas[H2O] == false:
+if NOT good_gas[H2O]:
     good_gas[H2O] = true
     num_neutral++
 ```
@@ -343,7 +343,7 @@ which is O2, the required gas):
 ```
 while num_neutral < 7:
     g = roll(1, 13)
-    if good_gas[g] == false:
+    if NOT good_gas[g]:
         good_gas[g] = true
         num_neutral++
 ```
@@ -357,7 +357,7 @@ gas id:
 ```
 slot = 0
 for gas_id = 1 to 13:
-    if good_gas[gas_id] == true AND gas_id != O2:
+    if good_gas[gas_id] AND gas_id != O2:
         species.neutral_gas[slot] = gas_id
         slot++
 ```
@@ -370,7 +370,7 @@ in ascending order of gas id:
 ```
 slot = 0
 for gas_id = 1 to 13:
-    if good_gas[gas_id] == false:
+    if NOT good_gas[gas_id]:
         species.poison_gas[slot] = gas_id
         slot++
 ```
@@ -390,7 +390,7 @@ colony.y            = star.y
 colony.z            = star.z
 colony.pn           = home_planet.orbit
 colony.planet_index = home_planet.index
-colony.status       = HOME_PLANET | POPULATED
+colony.status       = {HOME_PLANET, POPULATED}
 colony.pop_units    = HP_AVAILABLE_POP       // 1500
 colony.shipyards    = 1
 ```
@@ -447,12 +447,10 @@ species.num_namplas   = 1
 
 ### Step 7 — Mark System as Visited
 
-Set the species' visited-by bit in the home star's `visited_by` bit-set:
+Add the species to the home star's visited set:
 
 ```
-array_index = (species_number - 1) / 32
-bit_number  = (species_number - 1) % 32
-star.visited_by[array_index] |= (1 << bit_number)
+star.visited_by.add(species_number)
 ```
 
 ## Boundary Notes
