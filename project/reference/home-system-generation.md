@@ -53,9 +53,6 @@ HP_AVAILABLE_POP = 1500   // initial population units on home planet
 
 ```
 Species {
-    name              string     // species name (5–31 characters)
-    govt_name         string     // government name (5–31 characters)
-    govt_type         string     // government type (5–31 characters)
     x, y, z           int        // coordinates of home system
     pn                int        // orbit number of home planet
     required_gas      int        // gas id the species must breathe
@@ -63,20 +60,8 @@ Species {
     required_gas_max  int        // maximum acceptable percentage
     neutral_gas       [6]int     // gases harmless to the species
     poison_gas        [6]int     // gases toxic to the species
-    auto_orders       int        // AUTO command flag
     tech_level        [6]int     // current tech levels (indexed by MI..BI)
-    init_tech_level   [6]int     // tech levels at start of turn
-    tech_knowledge    [6]int     // unapplied tech knowledge
-    tech_eps          [6]int     // experience points per tech
     num_namplas       int        // number of named planets
-    num_ships         int        // number of ships
-    hp_original_base  int        // original economic base (for recovery)
-    econ_units        int        // economic units
-    fleet_cost        int        // fleet maintenance cost
-    fleet_percent_cost int       // fleet cost as percentage × 100
-    contact           []uint32   // bit-set of contacted species
-    ally              []uint32   // bit-set of allied species
-    enemy             []uint32   // bit-set of enemy species
 }
 ```
 
@@ -92,19 +77,6 @@ NamedPlanet {
     ma_base           int        // manufacturing base × 10
     pop_units         int        // available population units
     shipyards         int        // number of shipyards
-    hiding             int       // HIDE order given
-    hidden             int       // colony is hidden
-    siege_eff          int       // siege effectiveness (0–99)
-    item_quantity      []int     // quantity of each item
-    IUs_needed         int       // incoming IUs
-    AUs_needed         int       // incoming AUs
-    auto_IUs           int       // auto-install IUs
-    auto_AUs           int       // auto-install AUs
-    IUs_to_install     int       // IUs to install
-    AUs_to_install     int       // AUs to install
-    use_on_ambush      int       // amount for ambush
-    message            int       // message id (0 = none)
-    special            int       // application-specific
 }
 ```
 
@@ -278,7 +250,6 @@ data for each planet:
 - `mining_difficulty`
 - `econ_efficiency`
 - `md_increase`
-- `message`
 
 Set `star.home_system = true`.
 
@@ -304,15 +275,6 @@ species.tech_level[BI] = input.bi // player-chosen
 
 ```
 input.ml + input.gv + input.ls + input.bi <= 15
-```
-
-Initialize derived tech fields:
-
-```
-for each tech t in MI..BI:
-    species.tech_knowledge[t] = species.tech_level[t]
-    species.init_tech_level[t] = species.tech_level[t]
-    species.tech_eps[t] = 0
 ```
 
 ### Step 2 — Required Gas
@@ -481,8 +443,6 @@ species.y            = star.y
 species.z            = star.z
 species.pn           = home_planet.orbit
 species.num_namplas   = 1
-species.num_ships     = 0
-species.econ_units    = 0
 ```
 
 ### Step 7 — Mark System as Visited

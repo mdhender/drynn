@@ -395,8 +395,8 @@ planet.gas[0..3]          = gas[1..4]       // note: offset by 1
 planet.gas_percent[0..3]  = gas_percent[1..4]
 ```
 
-All other fields (`econ_efficiency`, `md_increase`, `message`) are
-initialized to zero.
+All other fields (`econ_efficiency`, `md_increase`) are initialized to
+zero.
 
 ## Home System Viability Check
 

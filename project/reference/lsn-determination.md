@@ -65,8 +65,7 @@ poison_gas         [6]int   // gases that are toxic to the species
 ## Full LSN Algorithm
 
 This is the authoritative LSN calculation used during gameplay for
-production penalties, colony viability, terraforming, resort colony
-eligibility, and scan reports.
+production penalties, colony growth, and scan reports.
 
 Each environmental difference contributes **3 points** of life support
 needed.
@@ -206,21 +205,3 @@ percent_increase = 10 * (100 - (100 * ls_needed) / ls_actual) / 100
 where `ls_actual` is the species' Life Support tech level. If this
 value is negative, the colony is wiped out.
 
-### Resort Colony Eligibility
-
-A colony qualifies as a resort colony only if `ls_needed <= 6` (among
-other conditions).
-
-### Terraforming
-
-Terraforming plants (TPs) reduce LSN by modifying the colony planet's
-atmosphere, temperature, and pressure to match the home planet. Each
-terraforming action consumes 3 TPs and addresses one source of LSN
-(removing a poison gas, adjusting the required gas, or moving
-temperature/pressure one step closer to the home planet's value).
-
-The priority order for terraforming changes is:
-1. Remove a poison gas from the atmosphere.
-2. Add or adjust the required gas to the correct percentage range.
-3. Move temperature class one step toward the home planet's value.
-4. Move pressure class one step toward the home planet's value.

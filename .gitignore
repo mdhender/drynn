@@ -33,6 +33,8 @@ web/sitepublic/
 # this keeps us from accidentally checking in the binaries
 db
 !db/
+drynn
+!drynn/
 email
 !email/
 server

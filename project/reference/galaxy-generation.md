@@ -116,7 +116,6 @@ Star {
     worm_y         int        //   (only meaningful when worm_here is true)
     worm_z         int
     planet_index   int        // index of the first planet in the global planets array
-    message        int        // message id (0 = none)
     visited_by     []uint32   // bit-set; bit N is set if species N has visited
     planets        []Planet   // the planets orbiting this star
 }
@@ -136,7 +135,6 @@ Planet {
     mining_difficulty  int      // mining difficulty × 100
     econ_efficiency    int      // economic efficiency (always 100 for home planet)
     md_increase        int      // increase in mining difficulty per turn
-    message            int      // message id (0 = none)
 }
 ```
 
