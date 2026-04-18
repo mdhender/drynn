@@ -436,7 +436,7 @@ Run: `go test ./internal/service/...`
 
 ---
 
-## Task BD-5 — GameService delete + update stub [TODO]
+## Task BD-5 — GameService delete + update stub [DONE]
 
 **Depends on:** BD-4
 

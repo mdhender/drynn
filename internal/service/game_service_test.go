@@ -107,3 +107,37 @@ func TestGameService_ListGames(t *testing.T) {
 		t.Errorf("games[1].ID = %d, want %d", games[1].ID, first.ID)
 	}
 }
+
+func TestGameService_DeleteGame(t *testing.T) {
+	svc, fix := newGameService(t)
+	ctx := context.Background()
+	seeded := fix.NewGame().Build(ctx)
+
+	if err := svc.DeleteGame(ctx, seeded.ID); err != nil {
+		t.Fatalf("DeleteGame: %v", err)
+	}
+
+	if _, err := svc.GetGame(ctx, seeded.ID); !errors.Is(err, ErrGameNotFound) {
+		t.Fatalf("GetGame after delete: want ErrGameNotFound, got %v", err)
+	}
+}
+
+func TestGameService_DeleteGame_NotFound(t *testing.T) {
+	svc, _ := newGameService(t)
+	ctx := context.Background()
+
+	err := svc.DeleteGame(ctx, 999999)
+	if !errors.Is(err, ErrGameNotFound) {
+		t.Fatalf("want ErrGameNotFound, got %v", err)
+	}
+}
+
+func TestGameService_UpdateGame_NotImplemented(t *testing.T) {
+	svc, _ := newGameService(t)
+	ctx := context.Background()
+
+	err := svc.UpdateGame(ctx, 1)
+	if !errors.Is(err, ErrGameUpdateNotImplemented) {
+		t.Fatalf("want ErrGameUpdateNotImplemented, got %v", err)
+	}
+}

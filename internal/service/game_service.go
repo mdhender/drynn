@@ -80,6 +80,24 @@ func (s *GameService) ListGames(ctx context.Context) ([]Game, error) {
 	return games, nil
 }
 
+func (s *GameService) DeleteGame(ctx context.Context, gameID int64) error {
+	if _, err := s.queries.GetGameByID(ctx, gameID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrGameNotFound
+		}
+		return fmt.Errorf("get game: %w", err)
+	}
+
+	if err := s.queries.DeleteGame(ctx, gameID); err != nil {
+		return fmt.Errorf("delete game: %w", err)
+	}
+	return nil
+}
+
+func (s *GameService) UpdateGame(ctx context.Context, gameID int64) error {
+	return ErrGameUpdateNotImplemented
+}
+
 func normalizeGameName(name string) (string, error) {
 	normalized := strings.TrimSpace(name)
 	if normalized == "" {
