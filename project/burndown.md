@@ -261,7 +261,7 @@ Run: `go test ./cmd/drynn/...`
 
 ---
 
-## Task BD-3 — sqlc game queries + test fixture builder [TODO]
+## Task BD-3 — sqlc game queries + test fixture builder [DONE]
 
 **Depends on:** none (independent of BD-1/BD-2)
 

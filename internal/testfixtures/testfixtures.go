@@ -119,6 +119,34 @@ func (b *UserBuilder) Build(ctx context.Context) sqlc.User {
 }
 
 // ---------------------------------------------------------------------------
+// Game builder
+// ---------------------------------------------------------------------------
+
+// GameBuilder creates a game row.
+type GameBuilder struct {
+	f    *Fixtures
+	name string
+}
+
+// NewGame returns a builder pre-filled with a unique default name.
+func (f *Fixtures) NewGame() *GameBuilder {
+	n := f.next()
+	return &GameBuilder{f: f, name: fmt.Sprintf("game_%d", n)}
+}
+
+func (b *GameBuilder) Name(name string) *GameBuilder { b.name = name; return b }
+
+// Build inserts the game and returns the row.
+func (b *GameBuilder) Build(ctx context.Context) sqlc.Game {
+	b.f.t.Helper()
+	game, err := b.f.q.CreateGame(ctx, b.name)
+	if err != nil {
+		b.f.t.Fatalf("testfixtures: create game %q: %v", b.name, err)
+	}
+	return game
+}
+
+// ---------------------------------------------------------------------------
 // Invitation builder
 // ---------------------------------------------------------------------------
 
