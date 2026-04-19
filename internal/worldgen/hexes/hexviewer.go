@@ -93,7 +93,17 @@ func RenderDiskHTML(radius int, systems []System) ([]byte, error) {
 		return nil, fmt.Errorf("radius must be non-negative")
 	}
 
-	return renderDiskHTML(radius, systems, 0), nil
+	return renderDiskHTML(radius, systems, 0, false), nil
+}
+
+// RenderDiskHTMLWithCoords is like RenderDiskHTML but optionally overlays
+// the axial (q,r) coordinates inside each occupied hex.
+func RenderDiskHTMLWithCoords(radius int, systems []System, showCoords bool) ([]byte, error) {
+	if radius < 0 {
+		return nil, fmt.Errorf("radius must be non-negative")
+	}
+
+	return renderDiskHTML(radius, systems, 0, showCoords), nil
 }
 
 // axialToPixel converts axial (q, r) to flat-top hex pixel center.
@@ -107,7 +117,7 @@ func axialToPixel(q, r int, size float64) (float64, float64) {
 // renderDiskHTML produces a self-contained HTML page with an inline SVG hex
 // grid shaped as a hexagonal disk. It iterates the actual Disk() hexes in
 // axial coordinates, so the outline is always a proper hexagon.
-func renderDiskHTML(radius int, systems []System, pixSize float64) []byte {
+func renderDiskHTML(radius int, systems []System, pixSize float64, showCoords bool) []byte {
 	const (
 		maxDim = 1280.0
 		margin = 40.0
@@ -203,6 +213,21 @@ func renderDiskHTML(radius int, systems []System, pixSize float64) []byte {
 		}
 	}
 
+	// Optionally render axial coordinates near the bottom of occupied hexes.
+	if showCoords {
+		fontSize := pixSize * 0.28
+		if fontSize < 8 {
+			fontSize = 8
+		}
+		for _, hp := range pixels {
+			if starMap[hp.ax] > 0 {
+				ty := hp.cy + pixSize*sqrt3*0.38
+				fmt.Fprintf(&buf, `  <text x="%.1f" y="%.1f" font-family="system-ui, sans-serif" font-size="%.1f" fill="#888888" text-anchor="middle">%d,%d</text>`+"\n",
+					hp.cx, ty, fontSize, hp.ax.Q, hp.ax.R)
+			}
+		}
+	}
+
 	fmt.Fprintln(&buf, `</svg>`)
 	fmt.Fprintf(&buf, "</div>\n</body>\n</html>\n")
 	return buf.Bytes()
@@ -276,7 +301,7 @@ func renderHexHTML(cells map[viewerCell]int, numCols, numRows int, pixSize float
 
 // renderStarDots writes SVG circles in a die-face pattern for 1–5 stars.
 func renderStarDots(buf *bytes.Buffer, cx, cy, size float64, count int) {
-	r := size * 0.10
+	r := size * 0.15
 	d := size * 0.28
 
 	type pos struct{ x, y float64 }

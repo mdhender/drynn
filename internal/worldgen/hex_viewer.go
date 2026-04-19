@@ -175,10 +175,10 @@ func renderHexHTML(cells map[struct{ q, r int }]int, numCols, numRows int, pixSi
 			count := cells[hexCoord{col, row}]
 			if count == 1 {
 				fmt.Fprintf(&buf, `  <circle cx="%.1f" cy="%.1f" r="%.1f" fill="#222222"/>`+"\n",
-					cx, cy, pixSize*0.18)
+					cx, cy, pixSize*0.27)
 			} else if count > 1 {
 				fmt.Fprintf(&buf, `  <circle cx="%.1f" cy="%.1f" r="%.1f" fill="#222222"/>`+"\n",
-					cx, cy, pixSize*0.18)
+					cx, cy, pixSize*0.27)
 				fmt.Fprintf(&buf, `  <text x="%.1f" y="%.1f" font-family="system-ui, sans-serif" font-size="%.0f" fill="#888888" text-anchor="middle">+%d</text>`+"\n",
 					cx, cy+pixSize*0.48, pixSize*0.38, count-1)
 			}

@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -206,6 +208,9 @@ func run(args []string) error {
 	testPointsFlags := ff.NewFlagSet("test-points")
 	testPointsGen := testPointsFlags.StringLong("generator", "uniformSphere", "point generator: naive, naiveDisk, uniformDisk, uniformSphere")
 	testPointsNumber := testPointsFlags.IntLong("count", 100, "number of points")
+	testPointsSeed1 := testPointsFlags.UintLong("seed1", 20, "PRNG seed value 1")
+	testPointsSeed2 := testPointsFlags.UintLong("seed2", 20, "PRNG seed value 2")
+	testPointsRandomSeeds := testPointsFlags.BoolLong("use-random-seeds", "use random seeds instead of --seed1/--seed2")
 	testPointsOut := testPointsFlags.StringLong("out", ".", "output directory for the generated HTML")
 	testPointsCmd := &ff.Command{
 		Name:      "test-points",
@@ -213,6 +218,12 @@ func run(args []string) error {
 		ShortHelp: "render a worldgen point generator to an HTML/SVG preview",
 		Flags:     testPointsFlags,
 		Exec: func(ctx context.Context, args []string) error {
+			seed1, seed2 := uint64(*testPointsSeed1), uint64(*testPointsSeed2)
+			if *testPointsRandomSeeds {
+				seed1, seed2 = cryptoRandSeeds()
+			}
+			fmt.Printf("seeds: %d %d\n", seed1, seed2)
+			rng := prng.NewFromSeed(seed1, seed2)
 			var pg worldgen.PointGenerator = &worldgen.NaiveDiskPointsGenerator{}
 			switch *testPointsGen {
 			case "naiveDisk":
@@ -226,7 +237,7 @@ func run(args []string) error {
 			default:
 				return fmt.Errorf("unknown generator %q (want naiveDisk, naiveSphere, uniformDisk, or uniformSphere)", *testPointsGen)
 			}
-			g, err := worldgen.Generate(worldgen.WithDesiredNumberOfSystems(*testPointsNumber), worldgen.WithPointGenerator(pg))
+			g, err := worldgen.Generate(worldgen.WithDesiredNumberOfSystems(*testPointsNumber), worldgen.WithPointGenerator(pg), worldgen.WithPRNG(rng))
 			if err != nil {
 				return err
 			} else if g == nil {
@@ -260,12 +271,14 @@ func run(args []string) error {
 
 	// test-hexmap (standalone diagnostic)
 	testHexFlags := ff.NewFlagSet("test-hexmap")
-	testHexRadius := testHexFlags.IntLong("radius", 10, "disk radius in hexes")
-	testHexSystems := testHexFlags.IntLong("systems", 30, "number of star systems to place")
+	testHexRadius := testHexFlags.IntLong("radius", 15, "disk radius in hexes")
+	testHexSystems := testHexFlags.IntLong("systems", 100, "number of star systems to place")
 	testHexMinDist := testHexFlags.IntLong("min-distance", 0, "minimum distance between systems")
 	testHexMerge := testHexFlags.BoolLong("merge", "merge stars when too close instead of discarding")
 	testHexSeed1 := testHexFlags.UintLong("seed1", 20, "PRNG seed value 1")
 	testHexSeed2 := testHexFlags.UintLong("seed2", 20, "PRNG seed value 2")
+	testHexRandomSeeds := testHexFlags.BoolLong("use-random-seeds", "use random seeds instead of --seed1/--seed2")
+	testHexCoords := testHexFlags.BoolLong("coords", "render axial coordinates in occupied hexes")
 	testHexOut := testHexFlags.StringLong("out", ".", "output directory for the generated HTML")
 	testHexCmd := &ff.Command{
 		Name:      "test-hexmap",
@@ -273,7 +286,12 @@ func run(args []string) error {
 		ShortHelp: "generate a hex map with star systems and render to HTML",
 		Flags:     testHexFlags,
 		Exec: func(ctx context.Context, args []string) error {
-			rng := prng.NewFromSeed(uint64(*testHexSeed1), uint64(*testHexSeed2))
+			seed1, seed2 := uint64(*testHexSeed1), uint64(*testHexSeed2)
+			if *testHexRandomSeeds {
+				seed1, seed2 = cryptoRandSeeds()
+			}
+			fmt.Printf("seeds: %d %d\n", seed1, seed2)
+			rng := prng.NewFromSeed(seed1, seed2)
 			gen := hexmap.NewGenerator(rng)
 			systems, err := gen.Generate(*testHexRadius, *testHexSystems, *testHexMinDist, *testHexMerge)
 			if err != nil {
@@ -381,7 +399,7 @@ func run(args []string) error {
 				}
 			}
 
-			html, err := hexmap.RenderDiskHTML(*testHexRadius, systems)
+			html, err := hexmap.RenderDiskHTMLWithCoords(*testHexRadius, systems, *testHexCoords)
 			if err != nil {
 				return err
 			}
@@ -594,4 +612,14 @@ func printLeafUsage(cmd *ff.Command) {
 		}
 		return nil
 	})
+}
+
+func cryptoRandSeeds() (uint64, uint64) {
+	var buf [16]byte
+	if _, err := rand.Read(buf[:]); err != nil {
+		log.Fatalf("crypto/rand: %v", err)
+	}
+	s1 := binary.LittleEndian.Uint64(buf[:8])
+	s2 := binary.LittleEndian.Uint64(buf[8:])
+	return s1, s2
 }

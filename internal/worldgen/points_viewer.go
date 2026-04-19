@@ -135,7 +135,7 @@ func writePointsSVG(buf *bytes.Buffer, points []point, escapedTitle string, widt
 		t := clamp01((p.z + 1.0) / 2.0)
 		proj[i] = projected{
 			bx: bx, by: by, px: px, py: py,
-			radius:  2.0 + 1.2*t,
+			radius:  3.0 + 1.8*t,
 			opacity: 0.62 + 0.33*t,
 			sortKey: py + 0.15*px,
 		}
@@ -242,7 +242,7 @@ func writeProjectionPanel(buf *bytes.Buffer, points []point, label string, x, y,
 		items[i] = item{
 			x:       ix,
 			y:       iy,
-			r:       1.8 + 0.6*k,
+			r:       2.7 + 0.9*k,
 			opacity: 0.62 + 0.33*k,
 			order:   iy + 0.10*ix,
 		}
