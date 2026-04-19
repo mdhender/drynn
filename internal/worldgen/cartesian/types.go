@@ -1,4 +1,4 @@
-package worldgen
+package cartesian
 
 const (
 	standardNumberOfSpecies             = 25

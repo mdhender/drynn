@@ -24,7 +24,6 @@ import (
 	drynn "github.com/mdhender/drynn"
 	"github.com/mdhender/drynn/internal/config"
 	"github.com/mdhender/drynn/internal/prng"
-	"github.com/mdhender/drynn/internal/worldgen"
 	hexmap "github.com/mdhender/drynn/internal/worldgen/hexes"
 )
 
@@ -204,71 +203,6 @@ func run(args []string) error {
 		},
 	}
 
-	// test-points (no shared parent — standalone diagnostic)
-	testPointsFlags := ff.NewFlagSet("test-points")
-	testPointsGen := testPointsFlags.StringLong("generator", "uniformSphere", "point generator: naive, naiveDisk, uniformDisk, uniformSphere")
-	testPointsNumber := testPointsFlags.IntLong("count", 100, "number of points")
-	testPointsSeed1 := testPointsFlags.UintLong("seed1", 20, "PRNG seed value 1")
-	testPointsSeed2 := testPointsFlags.UintLong("seed2", 20, "PRNG seed value 2")
-	testPointsRandomSeeds := testPointsFlags.BoolLong("use-random-seeds", "use random seeds instead of --seed1/--seed2")
-	testPointsOut := testPointsFlags.StringLong("out", ".", "output directory for the generated HTML")
-	testPointsCmd := &ff.Command{
-		Name:      "test-points",
-		Usage:     "test-points [flags]",
-		ShortHelp: "render a worldgen point generator to an HTML/SVG preview",
-		Flags:     testPointsFlags,
-		Exec: func(ctx context.Context, args []string) error {
-			seed1, seed2 := uint64(*testPointsSeed1), uint64(*testPointsSeed2)
-			if *testPointsRandomSeeds {
-				seed1, seed2 = cryptoRandSeeds()
-			}
-			fmt.Printf("seeds: %d %d\n", seed1, seed2)
-			rng := prng.NewFromSeed(seed1, seed2)
-			var pg worldgen.PointGenerator = &worldgen.NaiveDiskPointsGenerator{}
-			switch *testPointsGen {
-			case "naiveDisk":
-				pg = &worldgen.NaiveDiskPointsGenerator{}
-			case "naiveSphere":
-				pg = &worldgen.NaiveSpherePointsGenerator{}
-			case "uniformDisk":
-				pg = &worldgen.UniformDiskPointsGenerator{}
-			case "uniformSphere":
-				pg = &worldgen.UniformSpherePointsGenerator{}
-			default:
-				return fmt.Errorf("unknown generator %q (want naiveDisk, naiveSphere, uniformDisk, or uniformSphere)", *testPointsGen)
-			}
-			g, err := worldgen.Generate(worldgen.WithDesiredNumberOfSystems(*testPointsNumber), worldgen.WithPointGenerator(pg), worldgen.WithPRNG(rng))
-			if err != nil {
-				return err
-			} else if g == nil {
-				return fmt.Errorf("failed to generate galaxy")
-			} else if g.Stars == nil {
-				return fmt.Errorf("failed to generate galaxy.stars")
-			} else if len(g.Stars) == 0 {
-				return fmt.Errorf("failed to generate galaxy.stars")
-			} else if g.Stars[0] == nil {
-				return fmt.Errorf("failed to generate galaxy.stars[0]")
-			}
-			buf, err := worldgen.GalaxyToHTML(g, *testPointsGen)
-			if err != nil {
-				return err
-			}
-			err = os.WriteFile(filepath.Join(*testPointsOut, *testPointsGen+".html"), buf, 0o644)
-			if err != nil {
-				return err
-			}
-			buf, err = worldgen.GalaxyToHexHTML(g, 0)
-			if err != nil {
-				return err
-			}
-			err = os.WriteFile(filepath.Join(*testPointsOut, *testPointsGen+"-hex.html"), buf, 0o644)
-			if err != nil {
-				return err
-			}
-			return nil
-		},
-	}
-
 	// test-hexmap (standalone diagnostic)
 	testHexFlags := ff.NewFlagSet("test-hexmap")
 	testHexRadius := testHexFlags.IntLong("radius", 15, "disk radius in hexes")
@@ -295,7 +229,7 @@ func run(args []string) error {
 			gen := hexmap.NewGenerator(rng)
 			systems, err := gen.Generate(*testHexRadius, *testHexSystems, *testHexMinDist, *testHexMerge)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+				_, _ = fmt.Fprintf(os.Stderr, "warning: %v\n", err)
 			}
 			fmt.Printf("placed %d systems (%d total stars, %d multi-star) in radius-%d disk\n",
 				len(systems), hexmap.TotalStars(systems), hexmap.CountMultiStar(systems), *testHexRadius)
@@ -506,7 +440,6 @@ func run(args []string) error {
 			logoutCmd,
 			healthCmd,
 			versionCmd,
-			testPointsCmd,
 			testHexCmd,
 			gameCmd,
 		},
@@ -575,7 +508,6 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  logout       clear the current session")
 	fmt.Fprintln(os.Stderr, "  health       check server health")
 	fmt.Fprintln(os.Stderr, "  version      print the build version")
-	fmt.Fprintln(os.Stderr, "  test-points  render a worldgen point generator to an HTML/SVG preview")
 	fmt.Fprintln(os.Stderr, "  test-hexmap  generate a hex map with star systems and render to HTML")
 	fmt.Fprintln(os.Stderr, "  game         manage games (create, list, show, update, delete)")
 }

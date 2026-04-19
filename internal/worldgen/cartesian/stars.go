@@ -1,13 +1,20 @@
 // Copyright (c) 2026 Michael D Henderson. All rights reserved.
 
-package worldgen
+package cartesian
 
 type Star struct {
+	Point
+
 	kind  starType
 	color starColor
 	size  int // 0..9
 
 	numPlanets int // 1..9
+	planets    []*planet
+
+	homeSystem bool
+
+	wormholes *[]point
 }
 
 type starType int
