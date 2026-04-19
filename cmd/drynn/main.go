@@ -8,16 +8,22 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/peterbourgon/ff/v4"
 
 	drynn "github.com/mdhender/drynn"
 	"github.com/mdhender/drynn/internal/config"
+	"github.com/mdhender/drynn/internal/prng"
 	"github.com/mdhender/drynn/internal/worldgen"
+	hexmap "github.com/mdhender/drynn/internal/worldgen/hexes"
 )
 
 var httpClient = &http.Client{Timeout: 10 * time.Second}
@@ -207,12 +213,184 @@ func run(args []string) error {
 		ShortHelp: "render a worldgen point generator to an HTML/SVG preview",
 		Flags:     testPointsFlags,
 		Exec: func(ctx context.Context, args []string) error {
+			var pg worldgen.PointGenerator = &worldgen.NaiveDiskPointsGenerator{}
 			switch *testPointsGen {
-			case "naiveDisk", "naiveSphere", "uniformDisk", "uniformSphere":
+			case "naiveDisk":
+				pg = &worldgen.NaiveDiskPointsGenerator{}
+			case "naiveSphere":
+				pg = &worldgen.NaiveSpherePointsGenerator{}
+			case "uniformDisk":
+				pg = &worldgen.UniformDiskPointsGenerator{}
+			case "uniformSphere":
+				pg = &worldgen.UniformSpherePointsGenerator{}
 			default:
-				return fmt.Errorf("unknown generator %q (want naive, naiveDisk, uniformDisk, or uniformSphere)", *testPointsGen)
+				return fmt.Errorf("unknown generator %q (want naiveDisk, naiveSphere, uniformDisk, or uniformSphere)", *testPointsGen)
 			}
-			return worldgen.TestPointsGenerator(*testPointsNumber, *testPointsGen, *testPointsOut)
+			g, err := worldgen.Generate(worldgen.WithDesiredNumberOfSystems(*testPointsNumber), worldgen.WithPointGenerator(pg))
+			if err != nil {
+				return err
+			} else if g == nil {
+				return fmt.Errorf("failed to generate galaxy")
+			} else if g.Stars == nil {
+				return fmt.Errorf("failed to generate galaxy.stars")
+			} else if len(g.Stars) == 0 {
+				return fmt.Errorf("failed to generate galaxy.stars")
+			} else if g.Stars[0] == nil {
+				return fmt.Errorf("failed to generate galaxy.stars[0]")
+			}
+			buf, err := worldgen.GalaxyToHTML(g, *testPointsGen)
+			if err != nil {
+				return err
+			}
+			err = os.WriteFile(filepath.Join(*testPointsOut, *testPointsGen+".html"), buf, 0o644)
+			if err != nil {
+				return err
+			}
+			buf, err = worldgen.GalaxyToHexHTML(g, 0)
+			if err != nil {
+				return err
+			}
+			err = os.WriteFile(filepath.Join(*testPointsOut, *testPointsGen+"-hex.html"), buf, 0o644)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+
+	// test-hexmap (standalone diagnostic)
+	testHexFlags := ff.NewFlagSet("test-hexmap")
+	testHexRadius := testHexFlags.IntLong("radius", 10, "disk radius in hexes")
+	testHexSystems := testHexFlags.IntLong("systems", 30, "number of star systems to place")
+	testHexMinDist := testHexFlags.IntLong("min-distance", 0, "minimum distance between systems")
+	testHexMerge := testHexFlags.BoolLong("merge", "merge stars when too close instead of discarding")
+	testHexSeed1 := testHexFlags.UintLong("seed1", 20, "PRNG seed value 1")
+	testHexSeed2 := testHexFlags.UintLong("seed2", 20, "PRNG seed value 2")
+	testHexOut := testHexFlags.StringLong("out", ".", "output directory for the generated HTML")
+	testHexCmd := &ff.Command{
+		Name:      "test-hexmap",
+		Usage:     "test-hexmap [flags]",
+		ShortHelp: "generate a hex map with star systems and render to HTML",
+		Flags:     testHexFlags,
+		Exec: func(ctx context.Context, args []string) error {
+			rng := prng.NewFromSeed(uint64(*testHexSeed1), uint64(*testHexSeed2))
+			gen := hexmap.NewGenerator(rng)
+			systems, err := gen.Generate(*testHexRadius, *testHexSystems, *testHexMinDist, *testHexMerge)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+			}
+			fmt.Printf("placed %d systems (%d total stars, %d multi-star) in radius-%d disk\n",
+				len(systems), hexmap.TotalStars(systems), hexmap.CountMultiStar(systems), *testHexRadius)
+
+			// Star-count breakdown.
+			var one, two, three, four, fivePlus int
+			for _, s := range systems {
+				switch s.Stars {
+				case 1:
+					one++
+				case 2:
+					two++
+				case 3:
+					three++
+				case 4:
+					four++
+				default:
+					fivePlus++
+				}
+			}
+			fmt.Printf("  1-star: %d   2-star: %d   3-star: %d   4-star: %d   5+-star: %d\n", one, two, three, four, fivePlus)
+
+			// Pairwise distance statistics.
+			if len(systems) >= 2 {
+				var distances []int
+				for i := 0; i < len(systems); i++ {
+					for j := i + 1; j < len(systems); j++ {
+						distances = append(distances, systems[i].Hex.Distance(systems[j].Hex))
+					}
+				}
+				sort.Ints(distances)
+				sum := 0
+				for _, d := range distances {
+					sum += d
+				}
+				mean := float64(sum) / float64(len(distances))
+				var median float64
+				n := len(distances)
+				if n%2 == 1 {
+					median = float64(distances[n/2])
+				} else {
+					median = float64(distances[n/2-1]+distances[n/2]) / 2.0
+				}
+				fmt.Printf("  distances (n=%d pairs): min=%d  max=%d  mean=%.1f  median=%.1f\n",
+					len(distances), distances[0], distances[n-1], mean, median)
+
+				// Nearest-neighbor distance statistics.
+				nn := make([]int, len(systems))
+				for i := range systems {
+					nn[i] = math.MaxInt
+					for j := range systems {
+						if i == j {
+							continue
+						}
+						if d := systems[i].Hex.Distance(systems[j].Hex); d < nn[i] {
+							nn[i] = d
+						}
+					}
+				}
+				sort.Ints(nn)
+				nnSum := 0
+				for _, d := range nn {
+					nnSum += d
+				}
+				nnMean := float64(nnSum) / float64(len(nn))
+				var nnMedian float64
+				nnN := len(nn)
+				if nnN%2 == 1 {
+					nnMedian = float64(nn[nnN/2])
+				} else {
+					nnMedian = float64(nn[nnN/2-1]+nn[nnN/2]) / 2.0
+				}
+				fmt.Printf("  nearest-neighbor: min=%d  max=%d  mean=%.1f  median=%.1f\n",
+					nn[0], nn[nnN-1], nnMean, nnMedian)
+
+				// Nearest-neighbor histogram.
+				nnHist := make(map[int]int)
+				for _, d := range nn {
+					nnHist[d]++
+				}
+				var nnKeys []int
+				for k := range nnHist {
+					nnKeys = append(nnKeys, k)
+				}
+				sort.Ints(nnKeys)
+				maxCount := 0
+				for _, count := range nnHist {
+					if count > maxCount {
+						maxCount = count
+					}
+				}
+				const barWidth = 40
+				fmt.Println("  nearest-neighbor histogram:")
+				for _, k := range nnKeys {
+					count := nnHist[k]
+					barLen := count * barWidth / maxCount
+					if barLen == 0 && count > 0 {
+						barLen = 1
+					}
+					fmt.Printf("    dist %2d: %s %d\n", k, strings.Repeat("█", barLen), count)
+				}
+			}
+
+			html, err := hexmap.RenderDiskHTML(*testHexRadius, systems)
+			if err != nil {
+				return err
+			}
+			outPath := filepath.Join(*testHexOut, "hexmap.html")
+			if err := os.WriteFile(outPath, html, 0o644); err != nil {
+				return err
+			}
+			fmt.Printf("wrote %s\n", outPath)
+			return nil
 		},
 	}
 
@@ -311,6 +489,7 @@ func run(args []string) error {
 			healthCmd,
 			versionCmd,
 			testPointsCmd,
+			testHexCmd,
 			gameCmd,
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -379,6 +558,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  health       check server health")
 	fmt.Fprintln(os.Stderr, "  version      print the build version")
 	fmt.Fprintln(os.Stderr, "  test-points  render a worldgen point generator to an HTML/SVG preview")
+	fmt.Fprintln(os.Stderr, "  test-hexmap  generate a hex map with star systems and render to HTML")
 	fmt.Fprintln(os.Stderr, "  game         manage games (create, list, show, update, delete)")
 }
 

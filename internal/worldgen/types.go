@@ -1,9 +1,9 @@
 package worldgen
 
 const (
-	standardNumberOfSpecies     = 25
-	standardNumberOfStarSystems = 90
-	standardGalacticRadius      = 20 // parsecs
+	standardNumberOfSpecies             = 25
+	standardNumberOfStarSystems float64 = 90
+	standardGalacticRadius      float64 = 20 // parsecs
 
 	minSpecies = 1
 	maxSpecies = 250
@@ -11,34 +11,13 @@ const (
 	minStars = 12
 	maxStars = 1000
 
-	minRadius = 6
-	maxRadius = 50
+	minRadius = 6.0
+	maxRadius = 50.0
 
 	maxDiameter = 2 * maxRadius // 100
 	maxPlanets  = 9 * maxStars  // 9000
 
 	hpAvailablePop = 1500
-)
-
-type starType int
-
-const (
-	starDwarf        starType = 1
-	starDegenerate   starType = 2
-	starMainSequence starType = 3
-	starGiant        starType = 4
-)
-
-type starColor int
-
-const (
-	colorBlue        starColor = 1
-	colorBlueWhite   starColor = 2
-	colorWhite       starColor = 3
-	colorYellowWhite starColor = 4
-	colorYellow      starColor = 5
-	colorOrange      starColor = 6
-	colorRed         starColor = 7
 )
 
 type atmosphericGas int
@@ -70,32 +49,6 @@ const (
 	planetIdealColony     planetSpecial = 2
 	planetRadioactiveHell planetSpecial = 3
 )
-
-type galaxy struct {
-	dNumSpecies int // designed (maximum) number of species
-	numSpecies  int
-	radius      int // parsecs
-}
-
-type star struct {
-	x, y, z int
-
-	kind  starType
-	color starColor
-	size  int // 0..9
-
-	numPlanets int // 1..9
-
-	homeSystem bool
-
-	wormHere            bool
-	wormX, wormY, wormZ int
-
-	planetIndex int // offset of first planet in the global planets slice
-
-	visitedBy map[int]struct{}
-	planets   []planet
-}
 
 type planet struct {
 	temperatureClass int // 1..30 (3..7 for gas giants)

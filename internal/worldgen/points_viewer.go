@@ -8,27 +8,40 @@ import (
 	"fmt"
 	"html"
 	"math"
-	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"slices"
+
+	"github.com/mdhender/drynn/internal/prng"
 )
 
+func GalaxyToHTML(g *Galaxy, generatorName string) ([]byte, error) {
+	set := make([]point, 0, len(g.Stars))
+	for _, star := range g.Stars {
+		set = append(set, point{
+			x: float64(star.X) / g.Radius,
+			y: float64(star.Y) / g.Radius,
+			z: float64(star.Z) / g.Radius,
+		})
+	}
+	return renderPointsHTML(set, generatorName, true), nil
+}
+
 func TestPointsGenerator(n int, g string, p string) error {
-	var pg pointGenerator
+	var pg PointGenerator
 	switch g {
 	case "naiveDisk":
-		pg = &naiveDiskPointsGenerator{}
+		pg = &NaiveDiskPointsGenerator{}
 	case "naiveSphere":
-		pg = &naiveSpherePointsGenerator{}
+		pg = &NaiveSpherePointsGenerator{}
 	case "uniformDisk":
-		pg = &uniformDiskPointsGenerator{}
+		pg = &UniformDiskPointsGenerator{}
 	case "uniformSphere":
-		pg = &uniformSpherePointsGenerator{}
+		pg = &UniformSpherePointsGenerator{}
 	default:
 		panic("unknown generator " + g)
 	}
-	r := rand.New(rand.NewPCG(10, 10))
+	r := prng.NewFromSeed(10, 10)
 	set := pg.Generate(n, r)
 	err := os.WriteFile(filepath.Join(p, g+".html"), renderPointsHTML(set, filepath.Join(p, g), true), 0o644)
 	return err
