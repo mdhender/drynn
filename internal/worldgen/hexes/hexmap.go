@@ -3,39 +3,26 @@ package hexmap
 import (
 	"fmt"
 
+	"github.com/mdhender/drynn/internal/hexes"
 	"github.com/mdhender/drynn/internal/prng"
 )
 
-// Axial identifies a hex using axial coordinates (Q, R).
-// The implied cube coordinate is S = -Q - R.
-type Axial struct {
-	Q int
-	R int
+// Axial is an alias so callers that already reference hexmap.Axial keep working.
+type Axial = hexes.Axial
+
+// Disk delegates to the canonical implementation in internal/hexes.
+func Disk(r int) []Axial {
+	return hexes.Disk(r)
 }
 
-// S returns the implied cube component.
-func (h Axial) S() int {
-	return -h.Q - h.R
+// Capacity delegates to the canonical implementation in internal/hexes.
+func Capacity(r int) int {
+	return hexes.Capacity(r)
 }
 
-// Distance returns the hex distance between two axial coordinates.
-func (h Axial) Distance(other Axial) int {
-	dq := h.Q - other.Q
-	dr := h.R - other.R
-	ds := h.S() - other.S()
-	return max3(abs(dq), abs(dr), abs(ds))
-}
-
-// Neighbors returns the six adjacent hexes.
-func (h Axial) Neighbors() [6]Axial {
-	return [6]Axial{
-		{Q: h.Q + 1, R: h.R},
-		{Q: h.Q + 1, R: h.R - 1},
-		{Q: h.Q, R: h.R - 1},
-		{Q: h.Q - 1, R: h.R},
-		{Q: h.Q - 1, R: h.R + 1},
-		{Q: h.Q, R: h.R + 1},
-	}
+// Contains delegates to the canonical implementation in internal/hexes.
+func Contains(r int, h Axial) bool {
+	return hexes.Contains(r, h)
 }
 
 // System is a star system located at a hex, with one or more stars.
@@ -49,8 +36,7 @@ type Generator struct {
 	rng *prng.PRNG
 }
 
-// NewGenerator returns a generator using math/rand/v2 and PCG seeded
-// with the fixed values (20, 20).
+// NewGenerator returns a generator using the provided PRNG.
 func NewGenerator(r *prng.PRNG) *Generator {
 	return &Generator{rng: r}
 }
@@ -87,18 +73,18 @@ func (g *Generator) Generate(r, n, minimumDistance int, merge bool) ([]System, e
 		return nil, fmt.Errorf("minimumDistance must be non-negative")
 	}
 
-	hexes := Disk(r)
-	if n > len(hexes) && !merge {
-		return nil, fmt.Errorf("number of systems %d exceeds disk capacity %d", n, len(hexes))
+	disk := Disk(r)
+	if n > len(disk) && !merge {
+		return nil, fmt.Errorf("number of systems %d exceeds disk capacity %d", n, len(disk))
 	}
 
-	g.rng.Shuffle(len(hexes), func(i, j int) {
-		hexes[i], hexes[j] = hexes[j], hexes[i]
+	g.rng.Shuffle(len(disk), func(i, j int) {
+		disk[i], disk[j] = disk[j], disk[i]
 	})
 
-	systems := make([]System, 0, min(n, len(hexes)))
+	systems := make([]System, 0, min(n, len(disk)))
 
-	for _, candidate := range hexes {
+	for _, candidate := range disk {
 		if idx := g.nearestWithinDistance(systems, candidate, minimumDistance); idx >= 0 {
 			if merge {
 				systems[idx].Stars++
@@ -128,38 +114,6 @@ func (g *Generator) MustGenerate(r, n, minimumDistance int, merge bool) []System
 		panic(err)
 	}
 	return systems
-}
-
-// Disk returns all axial hexes in a disk of radius r centered at (0,0).
-//
-// Ordering is deterministic: increasing q, then increasing r within q.
-func Disk(r int) []Axial {
-	if r < 0 {
-		return nil
-	}
-
-	hexes := make([]Axial, 0, Capacity(r))
-	for q := -r; q <= r; q++ {
-		rMin := max(-r, -q-r)
-		rMax := min(r, -q+r)
-		for rr := rMin; rr <= rMax; rr++ {
-			hexes = append(hexes, Axial{Q: q, R: rr})
-		}
-	}
-	return hexes
-}
-
-// Capacity returns the number of hexes in a disk of radius r.
-func Capacity(r int) int {
-	if r < 0 {
-		return 0
-	}
-	return 1 + 3*r*(r+1)
-}
-
-// Contains reports whether h lies inside the disk of radius r centered at (0,0).
-func Contains(r int, h Axial) bool {
-	return h.Distance(Axial{}) <= r
 }
 
 // TotalStars returns the total number of stars across all systems.
@@ -212,35 +166,4 @@ func (g *Generator) nearestWithinDistance(systems []System, candidate Axial, lim
 		return tied[0]
 	}
 	return tied[g.rng.Roll(0, len(tied)-1)]
-}
-
-func abs(n int) int {
-	if n < 0 {
-		return -n
-	}
-	return n
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func max3(a, b, c int) int {
-	if a < b {
-		a = b
-	}
-	if a < c {
-		a = c
-	}
-	return a
 }
