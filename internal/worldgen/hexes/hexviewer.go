@@ -114,10 +114,14 @@ func axialToPixel(q, r int, size float64) (float64, float64) {
 	return cx, cy
 }
 
-// renderDiskHTML produces a self-contained HTML page with an inline SVG hex
-// grid shaped as a hexagonal disk. It iterates the actual Disk() hexes in
-// axial coordinates, so the outline is always a proper hexagon.
-func renderDiskHTML(radius int, systems []System, pixSize float64, showCoords bool) []byte {
+// RenderDiskSVG produces the inline SVG element for a hex disk of the given
+// radius with overlaid systems, without any surrounding HTML document. Use
+// this when composing a page that embeds the map alongside other content; use
+// RenderDiskHTML when you want a stand-alone document.
+//
+// If pixSize <= 0, a suitable size is derived automatically to fit within
+// roughly 1280x1280.
+func RenderDiskSVG(radius int, systems []System, pixSize float64, showCoords bool) []byte {
 	const (
 		maxDim = 1280.0
 		margin = 40.0
@@ -182,11 +186,6 @@ func renderDiskHTML(radius int, systems []System, pixSize float64, showCoords bo
 	svgH := int(math.Ceil(vbH))
 
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n")
-	fmt.Fprintf(&buf, "<meta charset=\"UTF-8\">\n<title>Hex Map</title>\n")
-	fmt.Fprintf(&buf, "<style>body{margin:0;background:#f6f6f7;font-family:system-ui,sans-serif}.wrap{display:flex;justify-content:center;padding:24px}</style>\n")
-	fmt.Fprintf(&buf, "</head>\n<body>\n<div class=\"wrap\">\n")
-
 	fmt.Fprintf(&buf, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="%.1f %.1f %.1f %.1f">`+"\n",
 		svgW, svgH, vbX, vbY, vbW, vbH)
 	fmt.Fprintf(&buf, `  <rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" fill="white"/>`+"\n", vbX, vbY, vbW, vbH)
@@ -229,6 +228,20 @@ func renderDiskHTML(radius int, systems []System, pixSize float64, showCoords bo
 	}
 
 	fmt.Fprintln(&buf, `</svg>`)
+	return buf.Bytes()
+}
+
+// renderDiskHTML produces a self-contained HTML page with an inline SVG hex
+// grid shaped as a hexagonal disk.
+func renderDiskHTML(radius int, systems []System, pixSize float64, showCoords bool) []byte {
+	svg := RenderDiskSVG(radius, systems, pixSize, showCoords)
+
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n")
+	fmt.Fprintf(&buf, "<meta charset=\"UTF-8\">\n<title>Hex Map</title>\n")
+	fmt.Fprintf(&buf, "<style>body{margin:0;background:#f6f6f7;font-family:system-ui,sans-serif}.wrap{display:flex;justify-content:center;padding:24px}</style>\n")
+	fmt.Fprintf(&buf, "</head>\n<body>\n<div class=\"wrap\">\n")
+	buf.Write(svg)
 	fmt.Fprintf(&buf, "</div>\n</body>\n</html>\n")
 	return buf.Bytes()
 }

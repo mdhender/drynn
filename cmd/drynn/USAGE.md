@@ -85,6 +85,53 @@ Prints the build version and exits.
 drynn version
 ```
 
+## test-hexmap
+
+Generates a hex map populated with star systems and writes a self-contained HTML visualization. Local diagnostic; does not contact the server.
+
+```
+drynn test-hexmap [flags]
+```
+
+| Flag                 | Default | Description                                                 |
+|----------------------|---------|-------------------------------------------------------------|
+| `--radius`           | `15`    | Disk radius in hexes                                        |
+| `--systems`          | `100`   | Number of star systems to place                             |
+| `--min-distance`     | `0`     | Minimum hex distance between systems                        |
+| `--merge`            | *(off)* | Merge stars when too close instead of discarding candidate  |
+| `--seed1`            | `20`    | PRNG seed value 1                                           |
+| `--seed2`            | `20`    | PRNG seed value 2                                           |
+| `--use-random-seeds` | *(off)* | Use random seeds instead of `--seed1`/`--seed2`             |
+| `--coords`           | *(off)* | Render axial `(q,r)` coordinates inside occupied hexes      |
+| `--out`              | `.`     | Output directory for the generated `hexmap.html`            |
+
+Writes `hexmap.html` under `--out` and prints placement statistics (system count, star breakdown, pairwise and nearest-neighbor distances).
+
+## test-galaxy
+
+Generates a full galaxy (hex map + stars + planets) using `internal/worldgen` and optionally writes a self-contained HTML page. Local diagnostic; does not contact the server.
+
+```
+drynn test-galaxy [flags]
+```
+
+| Flag                 | Default | Description                                                 |
+|----------------------|---------|-------------------------------------------------------------|
+| `--radius`           | `15`    | Disk radius in hexes                                        |
+| `--systems`          | `100`   | Target number of star systems to place                      |
+| `--min-distance`     | `0`     | Minimum hex distance between systems                        |
+| `--merge`            | *(off)* | Merge stars when too close instead of discarding candidate  |
+| `--seed1`            | `20`    | PRNG seed value 1                                           |
+| `--seed2`            | `20`    | PRNG seed value 2                                           |
+| `--use-random-seeds` | *(off)* | Use random seeds instead of `--seed1`/`--seed2`             |
+| `--html`             | *(off)* | Write `galaxy.html` with the hex map                        |
+| `--coords`           | *(off)* | Render axial `(q,r)` coordinates inside occupied hexes      |
+| `--planets`          | *(off)* | Include a per-system planet report in the generated HTML    |
+| `--pixel-size`       | `0`     | Hex pixel size (0 = auto-fit to ~1280×1280)                 |
+| `--out`              | `.`     | Output directory for `galaxy.html`                          |
+
+Always prints system/star/planet counts and a star-count breakdown. When `--html` is set, writes `galaxy.html` to `--out`; `--coords`, `--planets`, and `--pixel-size` only affect the HTML output.
+
 ## game
 
 Parent command for managing games via the API. All subcommands require an active session (run `drynn login` first) and an admin account on the server.

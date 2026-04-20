@@ -24,6 +24,7 @@ import (
 	drynn "github.com/mdhender/drynn"
 	"github.com/mdhender/drynn/internal/config"
 	"github.com/mdhender/drynn/internal/prng"
+	"github.com/mdhender/drynn/internal/worldgen"
 	hexmap "github.com/mdhender/drynn/internal/worldgen/hexes"
 )
 
@@ -346,6 +347,84 @@ func run(args []string) error {
 		},
 	}
 
+	// test-galaxy (standalone diagnostic)
+	testGalaxyFlags := ff.NewFlagSet("test-galaxy")
+	testGalaxyRadius := testGalaxyFlags.IntLong("radius", 15, "disk radius in hexes")
+	testGalaxySystems := testGalaxyFlags.IntLong("systems", 100, "target number of star systems to place")
+	testGalaxyMinDist := testGalaxyFlags.IntLong("min-distance", 0, "minimum distance between systems")
+	testGalaxyMerge := testGalaxyFlags.BoolLong("merge", "merge stars when too close instead of discarding")
+	testGalaxySeed1 := testGalaxyFlags.UintLong("seed1", 20, "PRNG seed value 1")
+	testGalaxySeed2 := testGalaxyFlags.UintLong("seed2", 20, "PRNG seed value 2")
+	testGalaxyRandomSeeds := testGalaxyFlags.BoolLong("use-random-seeds", "use random seeds instead of --seed1/--seed2")
+	testGalaxyHTML := testGalaxyFlags.BoolLong("html", "write galaxy.html with the hex map")
+	testGalaxyCoords := testGalaxyFlags.BoolLong("coords", "render axial coordinates in occupied hexes")
+	testGalaxyPlanets := testGalaxyFlags.BoolLong("planets", "include a planet report in the generated HTML")
+	testGalaxyPixel := testGalaxyFlags.Float64Long("pixel-size", 0, "hex pixel size (0 = auto-fit)")
+	testGalaxyOut := testGalaxyFlags.StringLong("out", ".", "output directory for the generated HTML")
+	testGalaxyCmd := &ff.Command{
+		Name:      "test-galaxy",
+		Usage:     "test-galaxy [flags]",
+		ShortHelp: "generate a galaxy and optionally render it to HTML",
+		Flags:     testGalaxyFlags,
+		Exec: func(ctx context.Context, args []string) error {
+			seed1, seed2 := uint64(*testGalaxySeed1), uint64(*testGalaxySeed2)
+			if *testGalaxyRandomSeeds {
+				seed1, seed2 = cryptoRandSeeds()
+			}
+			fmt.Printf("seeds: %d %d\n", seed1, seed2)
+
+			galaxy, err := worldgen.Generate(
+				worldgen.WithDesiredRadius(*testGalaxyRadius),
+				worldgen.WithDesiredNumberOfSystems(*testGalaxySystems),
+				worldgen.WithMinimumDistance(*testGalaxyMinDist),
+				worldgen.WithMerge(*testGalaxyMerge),
+				worldgen.WithPRNG(prng.NewFromSeed(seed1, seed2)),
+			)
+			if err != nil {
+				_, _ = fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+				if galaxy == nil {
+					return err
+				}
+			}
+
+			totalStars, totalPlanets := 0, 0
+			var one, two, three, four, fivePlus int
+			for _, s := range galaxy.Systems {
+				n := len(s.Stars)
+				totalStars += n
+				for _, star := range s.Stars {
+					totalPlanets += len(star.Planets)
+				}
+				switch n {
+				case 1:
+					one++
+				case 2:
+					two++
+				case 3:
+					three++
+				case 4:
+					four++
+				default:
+					fivePlus++
+				}
+			}
+			fmt.Printf("generated %d systems (%d stars, %d planets) in radius-%d galaxy\n",
+				len(galaxy.Systems), totalStars, totalPlanets, galaxy.Radius)
+			fmt.Printf("  1-star: %d   2-star: %d   3-star: %d   4-star: %d   5+-star: %d\n",
+				one, two, three, four, fivePlus)
+
+			if *testGalaxyHTML {
+				html := galaxy.ToHTML(*testGalaxyPixel, *testGalaxyCoords, *testGalaxyPlanets)
+				outPath := filepath.Join(*testGalaxyOut, "galaxy.html")
+				if err := os.WriteFile(outPath, html, 0o644); err != nil {
+					return err
+				}
+				fmt.Printf("wrote %s\n", outPath)
+			}
+			return nil
+		},
+	}
+
 	// game (parent command; dispatches to create/list/show/update/delete)
 	gameFlags := ff.NewFlagSet("game").SetParent(serverFlags)
 
@@ -441,6 +520,7 @@ func run(args []string) error {
 			healthCmd,
 			versionCmd,
 			testHexCmd,
+			testGalaxyCmd,
 			gameCmd,
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -509,6 +589,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  health       check server health")
 	fmt.Fprintln(os.Stderr, "  version      print the build version")
 	fmt.Fprintln(os.Stderr, "  test-hexmap  generate a hex map with star systems and render to HTML")
+	fmt.Fprintln(os.Stderr, "  test-galaxy  generate a galaxy and optionally render it to HTML")
 	fmt.Fprintln(os.Stderr, "  game         manage games (create, list, show, update, delete)")
 }
 

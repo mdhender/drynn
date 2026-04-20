@@ -140,6 +140,7 @@ func (g *Generator) rollStar() *Star {
 		p := &Planet{
 			Diameter:         seedDiameter[seedIndex],
 			TemperatureClass: seedTemperatureClass[seedIndex],
+			Gases:            make(map[AtmosphericGas]int),
 		}
 
 		// randomize diameter
@@ -327,7 +328,8 @@ func (g *Generator) rollStar() *Star {
 }
 
 func (g *Generator) rollPlanet(p *Planet, earthLike, makeMiningEasier bool) *Planet {
-	panic("!")
+	// todo - implement
+	return p
 }
 
 type Option func(*Generator) error
