@@ -166,7 +166,7 @@ func (g *Generator) rollStar() *Star {
 		if isGasGiant { // range 0.6 to 1.7
 			p.Density = float64(58+g.r.Roll(1, 56)+g.r.Roll(1, 56)) / 100
 		} else { // range 3.7 to 5.7
-			p.Density = float64(368 + g.r.Roll(1, 101) + g.r.Roll(1, 101))
+			p.Density = float64(368+g.r.Roll(1, 101)+g.r.Roll(1, 101)) / 100
 		}
 
 		// compute gravity (the divisor 72 is calibrated so that Earth's values (density=5.50, diameter=13) yield gravity ~= 1.0)
@@ -238,11 +238,11 @@ func (g *Generator) rollStar() *Star {
 			p.PressureClass -= g.r.Roll(1, 3)
 		}
 
-		// randomize atmosphere
-		var numberOfGasesWanted int
-		var minGasIndex, maxGasIndex AtmosphericGas
+		// randomize atmosphere. a pressure class of 0 means a vacuum, so skip
+		// gas selection and leave p.Gases empty.
 		if p.PressureClass > 0 {
-			numberOfGasesWanted = g.r.D4(2) / 2
+			numberOfGasesWanted := g.r.D4(2) / 2
+			var minGasIndex, maxGasIndex AtmosphericGas
 			switch n := 100 * p.TemperatureClass / 225; {
 			case n <= 1:
 				minGasIndex, maxGasIndex = 1, 5
@@ -263,51 +263,52 @@ func (g *Generator) rollStar() *Star {
 			case n >= 9:
 				minGasIndex, maxGasIndex = 9, 13
 			}
-		}
-		var firstGasFound AtmosphericGas
-		for len(p.Gases) == 0 {
-			for i := minGasIndex; i <= maxGasIndex; i++ {
-				if len(p.Gases) == numberOfGasesWanted {
-					break
-				}
-				if i == GasHe {
-					if p.TemperatureClass > 5 { // too hot for helium
+
+			var firstGasFound AtmosphericGas
+			for len(p.Gases) == 0 {
+				for i := minGasIndex; i <= maxGasIndex; i++ {
+					if len(p.Gases) == numberOfGasesWanted {
+						break
+					}
+					if i == GasHe {
+						if p.TemperatureClass > 5 { // too hot for helium
+							continue
+						}
+						if g.r.Roll(1, 3) > 1 { // skip the gas for some reason
+							continue
+						}
+						if firstGasFound == 0 {
+							firstGasFound = i
+						}
+						p.Gases[i] = g.r.Roll(1, 20)
 						continue
 					}
-					if g.r.Roll(1, 3) > 1 { // skip the gas for some reason
+					if g.r.Roll(1, 3) == 3 { // skip the gas for some reason
 						continue
 					}
 					if firstGasFound == 0 {
 						firstGasFound = i
 					}
-					p.Gases[i] = g.r.Roll(1, 20)
-					continue
-				}
-				if g.r.Roll(1, 3) == 3 { // skip the gas for some reason
-					continue
-				}
-				if firstGasFound == 0 {
-					firstGasFound = i
-				}
-				if i == GasO2 {
-					p.Gases[i] = g.r.Roll(1, 50)
-				} else {
-					p.Gases[i] = g.r.Roll(1, 100)
+					if i == GasO2 {
+						p.Gases[i] = g.r.Roll(1, 50)
+					} else {
+						p.Gases[i] = g.r.Roll(1, 100)
+					}
 				}
 			}
+			// normalize gas to percentages
+			totalQuantity := 0
+			for _, quantity := range p.Gases {
+				totalQuantity += quantity
+			}
+			percentUnallocated := 100
+			for gas, quantity := range p.Gases {
+				p.Gases[gas] = (100 * quantity) / totalQuantity
+				percentUnallocated -= p.Gases[gas]
+			}
+			// allocate any remaining amount to the first gas
+			p.Gases[firstGasFound] += percentUnallocated
 		}
-		// normalize gas to percentages
-		totalQuantity := 0
-		for _, quantity := range p.Gases {
-			totalQuantity += quantity
-		}
-		percentUnallocated := 100
-		for gas, quantity := range p.Gases {
-			p.Gases[gas] = (100 * quantity) / totalQuantity
-			percentUnallocated -= p.Gases[gas]
-		}
-		// allocate any remaining amount to the first gas
-		p.Gases[firstGasFound] += percentUnallocated
 
 		// randomize mining difficulty
 		p.MiningDifficulty = 0

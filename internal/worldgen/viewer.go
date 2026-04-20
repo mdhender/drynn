@@ -67,7 +67,7 @@ func writePlanetReport(buf *bytes.Buffer, g *Galaxy) {
 			fmt.Fprintln(buf, `<table><thead><tr><th>Orbit</th><th>Diameter (km)</th><th>Density</th><th>Gravity (g)</th><th>Temp</th><th>Pressure</th><th>Atmosphere</th><th>Mining</th></tr></thead><tbody>`)
 			for orbit, p := range star.Planets {
 				fmt.Fprintf(buf, "<tr><td>%d</td><td>%d</td><td>%.2f</td><td>%.2f</td><td>%d</td><td>%d</td><td>%s</td><td>%.0f</td></tr>\n",
-					orbit+1, p.Diameter*1000, p.Density/100, p.Gravity/100,
+					orbit+1, p.Diameter*1000, p.Density, p.Gravity,
 					p.TemperatureClass, p.PressureClass,
 					gasMixLabel(p.Gases), p.MiningDifficulty)
 			}
