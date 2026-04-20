@@ -8,6 +8,7 @@ type Star struct {
 	size  int // 0..9
 
 	numPlanets int // 1..9
+	Planets    []*Planet
 }
 
 type starType int

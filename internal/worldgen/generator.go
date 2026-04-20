@@ -4,6 +4,7 @@ package worldgen
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/mdhender/drynn/internal/prng"
 	hexmap "github.com/mdhender/drynn/internal/worldgen/hexes"
@@ -124,8 +125,209 @@ func (g *Generator) rollStar() *Star {
 	for star.numPlanets > 9 { // bump down to a maximum of 9
 		star.numPlanets -= g.r.Roll(1, 3)
 	}
+	seedDiameter := []int{0, 5, 12, 13, 7, 20, 143, 121, 51, 49} // thousands of km
+	seedTemperatureClass := []int{0, 29, 27, 11, 9, 8, 6, 5, 5, 3}
+	var previousPlanet *Planet
+	for orbit := 1; orbit <= star.numPlanets; orbit++ {
+		// determine seed; bias towards "earth" zones
+		var seedIndex int
+		if star.numPlanets <= 3 {
+			seedIndex = 2*orbit + 1
+		} else {
+			seedIndex = 9 * orbit / star.numPlanets
+		}
+		// use seed to initialize starting values
+		p := &Planet{
+			Diameter:         seedDiameter[seedIndex],
+			TemperatureClass: seedTemperatureClass[seedIndex],
+		}
+
+		// randomize diameter
+		dieSize := p.Diameter / 4
+		if dieSize < 2 {
+			dieSize = 2
+		}
+		for n := 4; n > 0; n-- {
+			delta := g.r.Roll(1, dieSize)
+			if g.r.D100(1) > 50 {
+				p.Diameter += delta
+			} else {
+				p.Diameter -= delta
+			}
+		}
+		for p.Diameter < 3 { // bump up to a minimum of 3
+			p.Diameter += g.r.D4(1)
+		}
+		// are we a gas giant?
+		isGasGiant := p.Diameter > 40
+
+		// compute density
+		if isGasGiant { // range 0.6 to 1.7
+			p.Density = float64(58+g.r.Roll(1, 56)+g.r.Roll(1, 56)) / 100
+		} else { // range 3.7 to 5.7
+			p.Density = float64(368 + g.r.Roll(1, 101) + g.r.Roll(1, 101))
+		}
+
+		// compute gravity (the divisor 72 is calibrated so that Earth's values (density=5.50, diameter=13) yield gravity ~= 1.0)
+		p.Gravity = p.Density * float64(p.Diameter) / 72
+
+		// randomize temperature class
+		dieSize = p.TemperatureClass / 4
+		if dieSize < 2 {
+			dieSize = 2
+		}
+		numberOfRolls = g.r.Roll(1, 3) + g.r.Roll(1, 3) + g.r.Roll(1, 3)
+		for ; numberOfRolls > 0; numberOfRolls-- {
+			delta := g.r.Roll(1, dieSize)
+			if g.r.D100(1) > 50 {
+				p.TemperatureClass += delta
+			} else {
+				p.TemperatureClass -= delta
+			}
+		}
+		// clamp by planet category
+		minTC, maxTC := 1, 30
+		if isGasGiant {
+			minTC, maxTC = 3, 7
+		}
+		for p.TemperatureClass < minTC { // bump up
+			p.TemperatureClass += g.r.Roll(1, 2)
+		}
+		for p.TemperatureClass > maxTC { // bump down
+			p.TemperatureClass -= g.r.Roll(1, 2)
+		}
+
+		// warm small systems
+		if star.numPlanets < 4 && orbit < 3 {
+			for p.TemperatureClass < 12 {
+				p.TemperatureClass += g.r.Roll(1, 4)
+			}
+		}
+
+		// enforce temperature ordering.
+		// Planets farther from the star must not be warmer than planets closer to it. The comparison is against the previous planet's final (stored) temperature class.
+		if previousPlanet != nil && previousPlanet.TemperatureClass < p.TemperatureClass {
+			p.TemperatureClass = previousPlanet.TemperatureClass
+		}
+
+		// randomize pressure class
+		p.PressureClass = int(math.Floor(p.Gravity * 10))
+		dieSize = p.PressureClass / 4
+		if dieSize < 2 {
+			dieSize = 2
+		}
+		numberOfRolls = g.r.Roll(1, 3) + g.r.Roll(1, 3) + g.r.Roll(1, 3)
+		for ; numberOfRolls > 0; numberOfRolls-- {
+			delta := g.r.Roll(1, dieSize)
+			if g.r.D100(1) > 50 {
+				p.PressureClass += delta
+			} else {
+				p.PressureClass -= delta
+			}
+		}
+		// clamp by planet category
+		minPC, maxPC := 0, 12
+		if isGasGiant {
+			minPC, maxPC = 11, 29
+		}
+		for p.PressureClass < minPC { // bump up
+			p.PressureClass += g.r.Roll(1, 3)
+		}
+		for p.PressureClass > maxPC { // bump down
+			p.PressureClass -= g.r.Roll(1, 3)
+		}
+
+		// randomize atmosphere
+		var numberOfGasesWanted int
+		var minGasIndex, maxGasIndex AtmosphericGas
+		if p.PressureClass > 0 {
+			numberOfGasesWanted = g.r.D4(2) / 2
+			switch n := 100 * p.TemperatureClass / 225; {
+			case n <= 1:
+				minGasIndex, maxGasIndex = 1, 5
+			case n == 2:
+				minGasIndex, maxGasIndex = 2, 6
+			case n == 3:
+				minGasIndex, maxGasIndex = 3, 7
+			case n == 4:
+				minGasIndex, maxGasIndex = 4, 8
+			case n == 5:
+				minGasIndex, maxGasIndex = 5, 9
+			case n == 6:
+				minGasIndex, maxGasIndex = 6, 10
+			case n == 7:
+				minGasIndex, maxGasIndex = 7, 11
+			case n == 8:
+				minGasIndex, maxGasIndex = 8, 12
+			case n >= 9:
+				minGasIndex, maxGasIndex = 9, 13
+			}
+		}
+		var firstGasFound AtmosphericGas
+		for len(p.Gases) == 0 {
+			for i := minGasIndex; i <= maxGasIndex; i++ {
+				if len(p.Gases) == numberOfGasesWanted {
+					break
+				}
+				if i == GasHe {
+					if p.TemperatureClass > 5 { // too hot for helium
+						continue
+					}
+					if g.r.Roll(1, 3) > 1 { // skip the gas for some reason
+						continue
+					}
+					if firstGasFound == 0 {
+						firstGasFound = i
+					}
+					p.Gases[i] = g.r.Roll(1, 20)
+					continue
+				}
+				if g.r.Roll(1, 3) == 3 { // skip the gas for some reason
+					continue
+				}
+				if firstGasFound == 0 {
+					firstGasFound = i
+				}
+				if i == GasO2 {
+					p.Gases[i] = g.r.Roll(1, 50)
+				} else {
+					p.Gases[i] = g.r.Roll(1, 100)
+				}
+			}
+		}
+		// normalize gas to percentages
+		totalQuantity := 0
+		for _, quantity := range p.Gases {
+			totalQuantity += quantity
+		}
+		percentUnallocated := 100
+		for gas, quantity := range p.Gases {
+			p.Gases[gas] = (100 * quantity) / totalQuantity
+			percentUnallocated -= p.Gases[gas]
+		}
+		// allocate any remaining amount to the first gas
+		p.Gases[firstGasFound] += percentUnallocated
+
+		// randomize mining difficulty
+		p.MiningDifficulty = 0
+		for {
+			p.MiningDifficulty = float64((g.r.Roll(1, 3)+g.r.Roll(1, 3)-g.r.Roll(1, 4))*g.r.Roll(1, p.Diameter) + g.r.Roll(1, 30) + g.r.Roll(1, 30))
+			if p.MiningDifficulty >= 40 && p.MiningDifficulty <= 500 {
+				break
+			}
+		}
+		// apply fudge factor
+		p.MiningDifficulty = p.MiningDifficulty * 11 / 5
+
+		star.Planets = append(star.Planets, g.rollPlanet(p, false, false))
+		previousPlanet = p
+	}
 
 	return star
+}
+
+func (g *Generator) rollPlanet(p *Planet, earthLike, makeMiningEasier bool) *Planet {
+	panic("!")
 }
 
 type Option func(*Generator) error
