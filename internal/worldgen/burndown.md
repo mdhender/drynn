@@ -49,7 +49,7 @@ when every candidate is randomly skipped. With a narrow window (5 gases, each
 ~2/3 chance of skip) this occasionally burns many iterations. Documented in code;
 needs a design review.
 
-## 10. Half-exported fields on `Star`
+## ✅ 10. Half-exported fields on `Star`
 
 Crud left over from iterating blindly. We aim to export all fields. Done in item 6.
 

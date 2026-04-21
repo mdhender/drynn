@@ -13,7 +13,7 @@ func Generate(options ...Option) (*Galaxy, error) {
 	g := &Generator{
 		desiredNumSystems: 100,
 		desiredRadius:     15,
-		minimumDistance:    2,
+		minimumDistance:   2,
 		merge:             true,
 		r:                 prng.NewFromSeed(10, 10),
 	}
@@ -144,7 +144,7 @@ func (g *Generator) rollStar() *Star {
 // rollPlanet generates a single planet at the given orbit around star.
 // previousPlanet is used to enforce temperature ordering (may be nil for orbit 1).
 func (g *Generator) rollPlanet(star *Star, orbit int, previousPlanet *Planet) *Planet {
-	seedDiameter := []int{0, 5, 12, 13, 7, 20, 143, 121, 51, 49}          // thousands of km
+	seedDiameter := []int{0, 5, 12, 13, 7, 20, 143, 121, 51, 49} // thousands of km
 	seedTemperatureClass := []int{0, 29, 27, 11, 9, 8, 6, 5, 5, 3}
 
 	// determine seed index; bias towards "earth" zones
@@ -299,29 +299,22 @@ func (g *Generator) rollPlanet(star *Star, orbit int, previousPlanet *Planet) *P
 				if len(p.Gases) == numberOfGasesWanted {
 					break
 				}
+				skipChance, maxQty := 3, 100
 				if i == GasHe {
 					if p.TemperatureClass > 5 { // too hot for helium
 						continue
 					}
-					if g.r.Roll(1, 3) > 1 { // skip the gas for some reason
-						continue
-					}
-					if firstGasFound == 0 {
-						firstGasFound = i
-					}
-					p.Gases[i] = g.r.Roll(1, 20)
+					skipChance, maxQty = 2, 20
+				} else if i == GasO2 {
+					maxQty = 50
+				}
+				if g.r.Roll(1, 3) >= skipChance { // skip the gas for some reason
 					continue
 				}
-				if g.r.Roll(1, 3) == 3 { // skip the gas for some reason
-					continue
-				}
-				if firstGasFound == 0 {
+				p.Gases[i] = g.r.Roll(1, maxQty)
+				if len(p.Gases) == 1 {
+					// excess will be allocated to the first gas found
 					firstGasFound = i
-				}
-				if i == GasO2 {
-					p.Gases[i] = g.r.Roll(1, 50)
-				} else {
-					p.Gases[i] = g.r.Roll(1, 100)
 				}
 			}
 		}
@@ -393,7 +386,7 @@ func WithPRNG(r *prng.PRNG) Option {
 type Generator struct {
 	desiredNumSystems int
 	desiredRadius     int
-	minimumDistance    int
+	minimumDistance   int
 	merge             bool
 	r                 *prng.PRNG
 }
