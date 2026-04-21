@@ -8,11 +8,17 @@ For the overall galaxy creation process, see [galaxy-generation.md](galaxy-gener
 
 ## Conventions
 
-All arithmetic is **integer arithmetic** unless stated otherwise.
+Arithmetic uses Go types as declared on the `Planet` struct:
+`Diameter`, `TemperatureClass`, and `PressureClass` are `int`;
+`Density`, `Gravity`, and `MiningDifficulty` are `float64`.
 Integer division truncates toward zero.
 
-`roll(low, high)` returns a uniformly distributed random integer
-in the range `[low, high]` (inclusive on both ends).
+`roll(1, n)` returns a uniformly distributed random integer
+in the range `[1, n]` (inclusive on both ends).
+
+`d100(1)` is shorthand for `roll(1, 100)`.
+
+`d4(n)` is shorthand for the sum of `n` calls to `roll(1, 4)`.
 
 When the document says "repeat until condition," it means a loop that
 re-rolls every iteration until the condition is satisfied.
@@ -23,14 +29,54 @@ Constants, enumerations, and type definitions are in
 ## Inputs
 
 ```
-num_planets       int    // number of planets to generate (1–9)
-earth_like        bool   // if true, one planet will be made earth-like
-makeMiningEasier  bool   // if true, use easier mining difficulty formula
+star            *Star    // the parent star (provides star.NumPlanets)
+orbit           int      // 1-based orbit index
+previousPlanet  *Planet  // the planet in the preceding orbit (nil for orbit 1)
 ```
 
-During galaxy creation, `earth_like` and `makeMiningEasier` are both `false`.
-They are `true` only when generating home system templates (outside the scope
-of this document).
+The function returns a single `*Planet`.
+
+## Planet Type
+
+```go
+type Planet struct {
+    Diameter         int                    // thousands of km
+    Density          float64                // earth ≈ 5.5
+    Gravity          float64                // in G's; earth = 1.0
+    TemperatureClass int                    // 1..30 (3..7 for gas giants)
+    PressureClass    int                    // 0..29
+
+    Special struct {
+        NotSpecial      bool
+        IdealHomePlanet bool
+        IdealColony     bool
+        RadioactiveHell bool
+    }
+
+    Gases            map[AtmosphericGas]int // gas → percent (0–100)
+
+    MiningDifficulty float64
+}
+```
+
+## Atmospheric Gas Enumeration
+
+| Value | Constant | Gas             |
+|------:|----------|-----------------|
+|     0 | GasNone  | (none)          |
+|     1 | GasH2    | Hydrogen        |
+|     2 | GasCH4   | Methane         |
+|     3 | GasHe    | Helium          |
+|     4 | GasNH3   | Ammonia         |
+|     5 | GasN2    | Nitrogen        |
+|     6 | GasCO2   | Carbon dioxide  |
+|     7 | GasO2    | Oxygen          |
+|     8 | GasHCl   | Hydrogen chloride |
+|     9 | GasCl2   | Chlorine        |
+|    10 | GasF2    | Fluorine        |
+|    11 | GasH2O   | Water vapor     |
+|    12 | GasSO2   | Sulfur dioxide  |
+|    13 | GasH2S   | Hydrogen sulfide |
 
 ## Reference Tables
 
@@ -38,40 +84,41 @@ Seed values are based on Earth's solar system. Index 0 is unused.
 Index 5 represents the asteroid belt (fantasy values).
 
 ```
-start_diameter  = [_, 5, 12, 13,  7, 20, 143, 121, 51, 49]  // thousands of km
-start_temp_class = [_, 29, 27, 11,  9,  8,   6,   5,  5,  3]
+seed_diameter    = [_, 5, 12, 13,  7, 20, 143, 121, 51, 49]  // thousands of km
+seed_temp_class  = [_, 29, 27, 11,  9,  8,   6,   5,  5,  3]
 ```
 
-These tables are indexed by `baseValue` (computed per-planet below).
+These tables are indexed by `seedIndex` (computed per-planet below).
 
 ## Algorithm
 
-Process planets sequentially from planet 1 to `num_planets`.
-Earlier planets are closer to the star; later planets are farther away.
+Planets are generated sequentially from orbit 1 to `star.NumPlanets`.
+Earlier orbits are closer to the star; later orbits are farther away.
 
 ### Per-Planet Generation
 
-For each `planet_number` from 1 to `num_planets`:
+For each `orbit` from 1 to `star.NumPlanets`:
 
-#### Step 1 — Compute Base Value
+#### Step 1 — Compute Seed Index
 
-The base value selects a starting diameter and temperature class from the
+The seed index selects a starting diameter and temperature class from the
 reference tables.
 
 ```
-if num_planets <= 3:
-    baseValue = 2 * planet_number + 1
+if star.NumPlanets <= 3:
+    seedIndex = 2 * orbit + 1
 else:
-    baseValue = (9 * planet_number) / num_planets
+    seedIndex = (9 * orbit) / star.NumPlanets
 ```
 
-The `num_planets <= 3` case nudges values toward the Earth-like zone.
+The `NumPlanets <= 3` case nudges values toward the Earth-like zone.
 
 #### Step 2 — Starting Values
 
 ```
-dia = start_diameter[baseValue]
-tc  = start_temp_class[baseValue]
+dia = seed_diameter[seedIndex]
+tc  = seed_temp_class[seedIndex]
+gases = empty map[AtmosphericGas]int
 ```
 
 #### Step 3 — Randomize Diameter
@@ -83,7 +130,7 @@ if die_size < 2:
 
 repeat 4 times:
     r = roll(1, die_size)
-    if roll(1, 100) > 50:
+    if d100(1) > 50:
         dia = dia + r
     else:
         dia = dia - r
@@ -107,27 +154,27 @@ Planets with diameter > 40,000 km are gas giants.
 
 #### Step 5 — Compute Density
 
-Density is scaled × 100 (so Earth ≈ 550).
+Density is a `float64` (Earth ≈ 5.50).
 
 ```
 if gas_giant:
-    // range: 60 to 170
-    density = 58 + roll(1, 56) + roll(1, 56)
+    // range: 0.60 to 1.70
+    density = float64(58 + roll(1, 56) + roll(1, 56)) / 100
 else:
-    // range: 370 to 570
-    density = 368 + roll(1, 101) + roll(1, 101)
+    // range: 3.70 to 5.70
+    density = float64(368 + roll(1, 101) + roll(1, 101)) / 100
 ```
 
 #### Step 6 — Compute Gravity
 
-Gravity is scaled × 100 (so Earth = 100).
+Gravity is a `float64` (Earth = 1.0).
 
 ```
-gravity = (density * diameter) / 72
+gravity = density * float64(diameter) / 72
 ```
 
-> The divisor 72 is calibrated so that Earth's values (density=550,
-> diameter=13) yield gravity=100.
+> The divisor 72 is calibrated so that Earth's values (density≈5.50,
+> diameter=13) yield gravity≈1.0.
 
 #### Step 7 — Randomize Temperature Class
 
@@ -140,7 +187,7 @@ n_rolls = roll(1, 3) + roll(1, 3) + roll(1, 3)
 
 repeat n_rolls times:
     r = roll(1, die_size)
-    if roll(1, 100) > 50:
+    if d100(1) > 50:
         tc = tc + r
     else:
         tc = tc - r
@@ -156,18 +203,18 @@ if gas_giant:
         tc -= roll(1, 2)
 else:
     while tc < 1:
-        tc += roll(1, 3)
+        tc += roll(1, 2)
     while tc > 30:
-        tc -= roll(1, 3)
+        tc -= roll(1, 2)
 ```
 
 #### Step 8 — Warm Small Systems
 
-If the system has fewer than 4 planets and this is planet 1 or 2, ensure
+If the system has fewer than 4 planets and this orbit is 1 or 2, ensure
 the planet is not too cold:
 
 ```
-if num_planets < 4 AND planet_number < 3:
+if star.NumPlanets < 4 AND orbit < 3:
     while tc < 12:
         tc += roll(1, 4)
 ```
@@ -175,81 +222,20 @@ if num_planets < 4 AND planet_number < 3:
 #### Step 9 — Enforce Temperature Ordering
 
 Planets farther from the star must not be warmer than planets closer to it.
-The comparison is against the previous planet's final (stored) temperature
-class:
+The comparison is against the previous planet's final temperature class:
 
 ```
-if planet_number > 1 AND previous_planet.temperature_class < tc:
-    tc = previous_planet.temperature_class
+if previousPlanet != nil AND previousPlanet.TemperatureClass < tc:
+    tc = previousPlanet.TemperatureClass
 ```
 
-#### Step 10 — Earth-Like Override
+#### Step 10 — Compute Pressure Class
 
-This step applies only when `earth_like` is `true` and it has not yet been
-used. The override triggers on the **first** planet (in orbit order) whose
-temperature class `tc <= 11`.
-
-If triggered, replace all previously computed values for this planet:
+Pressure class starts from gravity (a float64), converted to an integer
+via `math.Floor`:
 
 ```
-diameter           = 11 + roll(1, 3)                        // 12–14
-gravity            = 93 + roll(1, 11) + roll(1, 11) + roll(1, 5)  // 97–120
-temperature_class  = 9 + roll(1, 3)                         // 10–12
-pressure_class     = 8 + roll(1, 3)                         // 9–11
-mining_difficulty   = 208 + roll(1, 11) + roll(1, 11)        // 210–230
-special            = IDEAL_HOME_PLANET
-```
-
-Generate atmosphere:
-
-```
-slot = 0
-total_percent = 0
-
-// 1-in-3 chance of ammonia
-if roll(1, 3) == 1:
-    pct = roll(1, 30)
-    gas[slot] = NH3
-    gas_percent[slot] = pct
-    total_percent += pct
-    slot++
-
-nitro_slot = slot
-slot++
-
-// 1-in-3 chance of carbon dioxide
-if roll(1, 3) == 1:
-    pct = roll(1, 30)
-    gas[slot] = CO2
-    gas_percent[slot] = pct
-    total_percent += pct
-    slot++
-
-// oxygen: 11–30%
-pct = roll(1, 20) + 10
-gas[slot] = O2
-gas_percent[slot] = pct
-total_percent += pct
-
-// nitrogen gets the remainder
-gas[nitro_slot] = N2
-gas_percent[nitro_slot] = 100 - total_percent
-```
-
-Any remaining gas slots are set to gas=0, gas_percent=0.
-
-> **Invariant:** The algorithm produces at most 4 gases (ammonia, nitrogen,
-> CO2, oxygen), so slots 0–3 are never overflowed.
-
-After this override, **skip** the remaining steps (pressure class, atmosphere,
-mining difficulty) for this planet and proceed to the next planet.
-
-Mark `earth_like` as consumed so only one planet gets this treatment.
-
-#### Step 11 — Compute Pressure Class (Non-Earth-Like Planets)
-
-```
-pc = gravity / 10
+pc = int(math.Floor(gravity * 10))
 die_size = pc / 4
 if die_size < 2:
     die_size = 2
@@ -258,7 +244,7 @@ n_rolls = roll(1, 3) + roll(1, 3) + roll(1, 3)
 
 repeat n_rolls times:
     r = roll(1, die_size)
-    if roll(1, 100) > 50:
+    if d100(1) > 50:
         pc = pc + r
     else:
         pc = pc - r
@@ -279,158 +265,113 @@ else:
         pc -= roll(1, 3)
 ```
 
-Override to zero (no atmosphere) if:
+#### Step 11 — Generate Atmosphere
 
-```
-if gravity < 10:
-    pc = 0    // gravity too low to retain atmosphere
-else if tc < 2 OR tc > 27:
-    pc = 0    // temperature too extreme for atmosphere
-```
-
-#### Step 12 — Generate Atmosphere
-
-If `pressure_class == 0`, the planet has no atmosphere. Set all four gas
-slots to gas=0, gas_percent=0.
+If `pressure_class == 0`, the planet has no atmosphere. The `Gases` map
+remains empty.
 
 Otherwise:
 
-##### 12a — Determine Starting Gas Index
+##### 11a — Determine Gas Window
+
+The temperature class is mapped to a range of gas indices via a switch:
 
 ```
-first_gas = (100 * tc) / 225
-if first_gas < 1:
-    first_gas = 1
-else if first_gas > 9:
-    first_gas = 9
+n = (100 * tc) / 225
+
+switch:
+    case n <= 1:  min_gas = 1,  max_gas = 5
+    case n == 2:  min_gas = 2,  max_gas = 6
+    case n == 3:  min_gas = 3,  max_gas = 7
+    case n == 4:  min_gas = 4,  max_gas = 8
+    case n == 5:  min_gas = 5,  max_gas = 9
+    case n == 6:  min_gas = 6,  max_gas = 10
+    case n == 7:  min_gas = 7,  max_gas = 11
+    case n == 8:  min_gas = 8,  max_gas = 12
+    case n >= 9:  min_gas = 9,  max_gas = 13
 ```
 
-This maps the temperature class to a starting position in the gas enumeration
-(H2=1 through H2S=13). The planet will sample gases from `first_gas` through
-`first_gas + 4` (five consecutive gas types).
+Each case covers a window of 5 consecutive gas types from the atmospheric
+gas enumeration.
 
-##### 12b — Select Gases
+##### 11b — Select Gases
 
 ```
-num_gases_wanted = (roll(1, 4) + roll(1, 4)) / 2
-num_gases_found = 0
-gas_quantity = 0
+num_gases_wanted = d4(2) / 2
+first_gas_found = 0   // tracks which gas was added first
 ```
 
-Repeat the following until `num_gases_found > 0`:
+Repeat the following until at least one gas has been added to the map:
 
-For each gas index `i` from `first_gas` to `first_gas + 4`:
+For each gas index `i` from `min_gas` to `max_gas`:
 
-1. If `num_gases_found == num_gases_wanted`, stop iterating.
-2. If `i == HE` (Helium, value 3) — use helium-specific rules
-   (the general skip rule below does **not** apply):
-   - Skip if `roll(1, 3) > 1` (2-in-3 chance of skipping).
+1. If `len(gases) == num_gases_wanted`, stop iterating.
+2. If `i == GasHe` (Helium, value 3):
    - Skip if `tc > 5` (too hot for helium).
+   - Skip if `roll(1, 3) >= 2` (2-in-3 chance of skipping).
    - Otherwise: add Helium with quantity = `roll(1, 20)`.
-3. If `i != HE` — use the general skip rule:
-   - If `roll(1, 3) == 3`, skip this gas.
+3. If `i != GasHe`:
+   - Skip if `roll(1, 3) >= 3` (1-in-3 chance of skipping).
    - Otherwise: add gas `i`.
-     - If `i == O2`, quantity = `roll(1, 50)`.
+     - If `i == GasO2`, quantity = `roll(1, 50)`.
      - Else, quantity = `roll(1, 100)`.
 4. When a gas is added:
     ```
-    gas[num_gases_found] = gas_id
-    gas_percent[num_gases_found] = quantity
-    gas_quantity += quantity
-    num_gases_found++
+    gases[i] = quantity
+    if this is the first gas added:
+        first_gas_found = i
     ```
 
-> The outer "repeat until `num_gases_found > 0`" ensures at least one gas
+> The outer "repeat until `len(gases) > 0`" ensures at least one gas
 > is always selected. If the inner loop finishes without finding any gas,
-> restart the inner loop from `first_gas`.
+> restart the inner loop from `min_gas`.
 
-##### 12c — Normalize to Percentages
+##### 11c — Normalize to Percentages
 
 ```
-total_percent = 0
-for each found gas slot i (0 to num_gases_found - 1):
-    gas_percent[i] = (100 * gas_percent[i]) / gas_quantity
-    total_percent += gas_percent[i]
+total_quantity = sum of all values in gases map
 
-// give any rounding remainder to the first gas
-gas_percent[0] += 100 - total_percent
+percent_unallocated = 100
+for each gas in gases:
+    gases[gas] = (100 * gases[gas]) / total_quantity
+    percent_unallocated -= gases[gas]
+
+// give any rounding remainder to the first gas found
+gases[first_gas_found] += percent_unallocated
 ```
 
-#### Step 13 — Compute Mining Difficulty
+#### Step 12 — Compute Mining Difficulty
 
-Mining difficulty is scaled × 100.
-
-**Standard difficulty** (when `makeMiningEasier` is `false`):
+Mining difficulty is a `float64`.
 
 ```
 mining_dif = 0
 repeat until mining_dif >= 40 AND mining_dif <= 500:
-    mining_dif = (roll(1,3) + roll(1,3) + roll(1,3) - roll(1,4))
-                 * roll(1, diameter)
-                 + roll(1, 30) + roll(1, 30)
+    mining_dif = float64(
+        (roll(1,3) + roll(1,3) - roll(1,4))
+        * roll(1, diameter)
+        + roll(1, 30) + roll(1, 30)
+    )
 
 // apply fudge factor
-mining_dif = (mining_dif * 11) / 5
+mining_dif = mining_dif * 11 / 5
 ```
 
-**Easier difficulty** (when `makeMiningEasier` is `true`):
-
-```
-mining_dif = 0
-repeat until mining_dif >= 30 AND mining_dif <= 1000:
-    mining_dif = (roll(1,3) + roll(1,3) + roll(1,3) - roll(1,4))
-                 * roll(1, diameter)
-                 + roll(1, 20) + roll(1, 20)
-```
-
-No fudge factor is applied in the easier case.
+> Note: the base formula sums **two** `roll(1,3)` and subtracts one `roll(1,4)`,
+> yielding a multiplier range of −2 to +5 before scaling by diameter.
 
 ## Finalization
 
-After all planets are generated, copy the per-planet working values into
-`Planet` structs. Each planet gets:
+The function returns the completed `Planet` struct directly. All fields are
+set during generation:
 
 ```
-planet.diameter           = diameter
-planet.gravity            = gravity
-planet.mining_difficulty  = mining_difficulty
-planet.temperature_class  = temperature_class
-planet.pressure_class     = pressure_class
-planet.special            = special
-planet.gas[0..3]          = gas[0..3]
-planet.gas_percent[0..3]  = gas_percent[0..3]
+planet.Diameter          = diameter          // int
+planet.Density           = density           // float64
+planet.Gravity           = gravity           // float64
+planet.TemperatureClass  = temperature_class // int
+planet.PressureClass     = pressure_class    // int
+planet.Gases             = gases             // map[AtmosphericGas]int
+planet.MiningDifficulty  = mining_difficulty // float64
+planet.Special           = (zero-value struct; all bools false)
 ```
-
-All other fields (`econ_efficiency`, `md_increase`) are initialized to
-zero.
-
-## Home System Viability Check
-
-If any planet in the system has `special == IDEAL_HOME_PLANET`,
-a viability score is computed across **all** planets in the system.
-
-### LSN Function
-
-The viability check uses the **Approximate LSN** algorithm defined in
-[lsn-determination.md](lsn-determination.md). That variant uses a multiplier
-of 2 (not 3), assumes oxygen is required, and treats any gas not present
-on the home planet as poisonous.
-
-### Viability Score
-
-```
-home_planet = the planet with special == IDEAL_HOME_PLANET
-potential = 0
-
-for each planet in system:
-    potential += 20000 / ((3 + LSN(planet, home_planet)) * (50 + planet.mining_difficulty))
-```
-
-The system is a viable home system only if `potential > 53 AND potential < 57`.
-
-If the viability check fails, clear the `special` flag on the candidate planet
-(set `special = NOT_SPECIAL`) and mark the system as **not** a potential home system.
-
-> **Note:** During galaxy creation, `earth_like` is `false`, so no planet will
-> have `special == IDEAL_HOME_PLANET` and this check will never trigger. The viability check
-> is relevant only when generating home system templates.

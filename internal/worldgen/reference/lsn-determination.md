@@ -1,8 +1,14 @@
 # Life Support Needed (LSN) Determination
 
+> **Status: Not yet implemented.** The rules below describe planned behavior
+> for a future implementation. The active `worldgen` package does not yet
+> include LSN calculations. The approximate LSN algorithm is intended for
+> use in the planned home system viability check; the full LSN algorithm
+> is intended for gameplay systems.
+
 This document specifies the rules for computing the Life Support Needed
 (LSN) value for a planet relative to a species' home planet. It is
-intended as a reference for coding agents implementing LSN in Go.
+intended as a design reference for future implementation.
 
 Constants, enumerations, and type definitions are in
 [galaxy-generation.md](galaxy-generation.md).

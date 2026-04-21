@@ -1,12 +1,17 @@
 # Home System Generation Rules
 
-This document specifies the rules for generating a home system for a new
-species in Far Horizons. It covers template creation, system selection,
+> **Status: Not yet implemented.** The rules below describe planned behavior
+> for a future implementation. The active `worldgen` package does not yet
+> include home system template creation, system selection, template
+> application, or species initialization.
+
+This document specifies the planned rules for generating a home system for
+a new species in Far Horizons. It covers template creation, system selection,
 template application with randomization, and species initialization
 (gas tolerances, tech levels, mining/manufacturing bases). It is intended
-as a reference for coding agents implementing home system generation in Go.
+as a design reference for future implementation.
 
-For planet generation details, see [planet-creation.md](planet-creation.md).
+For planet generation details, see [planet-generation.md](planet-generation.md).
 For LSN calculations, see [lsn-determination.md](lsn-determination.md).
 
 ## Conventions
@@ -21,7 +26,7 @@ When the document says "repeat until condition," it means a loop that
 re-rolls every iteration until the condition is satisfied.
 
 Constants, enumerations, and type definitions are in
-[galaxy-creation.md](galaxy-creation.md) unless defined below.
+[galaxy-generation.md](galaxy-generation.md) unless defined below.
 
 ## Constants
 
