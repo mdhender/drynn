@@ -58,7 +58,7 @@ Crud left over from iterating blindly. We aim to export all fields. Done in item
 - `Planet.Special` struct is unused by the generator but referenced in the
   reference docs for home-system and planet generation. Keep for now; implement
   when `rollPlanet` gets the full planet-special logic.
-- `SystemsToHTML` / `SystemsToHTMLWithPixelSize` are near-duplicates; collapse
-  into one function.
+- ✅ `SystemsToHTML` / `SystemsToHTMLWithPixelSize` collapsed into a single
+  `SystemsToHTML(systems, pixSize)` function.
 - Label functions (`starKindLabel`, `gasNameLabel`) can become `String()` methods
   once all types are exported.

@@ -20,47 +20,9 @@ type viewerCell struct{ q, r int }
 // hex map. The map uses the systems' axial coordinates directly; no projection or
 // snapping is required because the generator already places systems on hexes.
 //
-// If systems is empty, a minimal empty map is returned.
-func SystemsToHTML(systems []viewerSystem) ([]byte, error) {
-	if len(systems) == 0 {
-		return renderHexHTML(nil, 1, 1, 0), nil
-	}
-
-	// Find the occupied-hex bounding box.
-	minQ, maxQ := systems[0].Hex.Q, systems[0].Hex.Q
-	minR, maxR := systems[0].Hex.R, systems[0].Hex.R
-	for _, s := range systems[1:] {
-		if s.Hex.Q < minQ {
-			minQ = s.Hex.Q
-		}
-		if s.Hex.Q > maxQ {
-			maxQ = s.Hex.Q
-		}
-		if s.Hex.R < minR {
-			minR = s.Hex.R
-		}
-		if s.Hex.R > maxR {
-			maxR = s.Hex.R
-		}
-	}
-
-	// Shift the occupied hexes so the minimum occupied coordinate is at (1,1),
-	// leaving a one-cell border around the rendered content.
-	cells := make(map[viewerCell]int, len(systems))
-	for _, s := range systems {
-		cells[viewerCell{s.Hex.Q - minQ + 1, s.Hex.R - minR + 1}] = s.Stars
-	}
-
-	numCols := maxQ - minQ + 3 // +2 for one-cell border, +1 for inclusive range
-	numRows := maxR - minR + 3
-
-	return renderHexHTML(cells, numCols, numRows, 0), nil
-}
-
-// SystemsToHTMLWithPixelSize is like SystemsToHTML but allows the caller to
-// override the pixel hex size used in the SVG. If pixSize <= 0, a suitable size
-// is derived automatically to fit within roughly 1280x1280.
-func SystemsToHTMLWithPixelSize(systems []viewerSystem, pixSize float64) ([]byte, error) {
+// If pixSize <= 0, a suitable size is derived automatically to fit within
+// roughly 1280x1280. If systems is empty, a minimal empty map is returned.
+func SystemsToHTML(systems []viewerSystem, pixSize float64) ([]byte, error) {
 	if len(systems) == 0 {
 		return renderHexHTML(nil, 1, 1, pixSize), nil
 	}
@@ -255,7 +217,7 @@ func renderDiskHTML(radius int, systems []viewerSystem, pixSize float64, showCoo
 }
 
 // renderHexHTML produces a self-contained HTML page with an inline SVG
-// rectangular hex grid. Used by SystemsToHTML / SystemsToHTMLWithPixelSize.
+// rectangular hex grid. Used by SystemsToHTML.
 func renderHexHTML(cells map[viewerCell]int, numCols, numRows int, pixSize float64) []byte {
 	const (
 		maxDim = 1280.0
