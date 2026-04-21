@@ -854,10 +854,14 @@ in under a second on modern hardware.
 
 ### Recommendation
 
-Expose the lower and upper bounds as game configuration parameters
-(e.g. `viability_min = 53`, `viability_max = 57`), defaulting to the
-original values. Keep `ViabilityScore` stored alongside each template
-so it can be correlated with player satisfaction later.
+Expose the accepted minimum and maximum as game configuration
+parameters, inclusive on both ends — e.g. `viability_min = 54`,
+`viability_max = 56` reproduces the original accepted set
+{54, 55, 56}. The `score > 53 AND score < 57` check in
+`GenerateHomeSystemTemplate` becomes
+`score >= viability_min AND score <= viability_max`. Keep
+`ViabilityScore` stored alongside each template so it can be
+correlated with player satisfaction later.
 
 ## Addendum B — Unscale `MiningDifficulty` (Future Work)
 
