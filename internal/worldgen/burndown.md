@@ -60,5 +60,6 @@ Crud left over from iterating blindly. We aim to export all fields. Done in item
   when `rollPlanet` gets the full planet-special logic.
 - ✅ `SystemsToHTML` / `SystemsToHTMLWithPixelSize` collapsed into a single
   `SystemsToHTML(systems, pixSize)` function.
-- Label functions (`starKindLabel`, `gasNameLabel`) can become `String()` methods
-  once all types are exported.
+- ✅ Label functions (`starKindLabel`, `gasNameLabel`) converted to `String()`
+  methods. `starKindLabel` was already removed (covered by `StarType.String()`
+  and `StarColor.String()`). `gasNameLabel` replaced by `AtmosphericGas.String()`.

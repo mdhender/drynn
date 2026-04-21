@@ -75,38 +75,6 @@ func writePlanetReport(buf *bytes.Buffer, g *Galaxy) {
 	fmt.Fprintln(buf, `</section>`)
 }
 
-func gasNameLabel(g AtmosphericGas) string {
-	switch g {
-	case GasH2:
-		return "H2"
-	case GasCH4:
-		return "CH4"
-	case GasHe:
-		return "He"
-	case GasNH3:
-		return "NH3"
-	case GasN2:
-		return "N2"
-	case GasCO2:
-		return "CO2"
-	case GasO2:
-		return "O2"
-	case GasHCl:
-		return "HCl"
-	case GasCl2:
-		return "Cl2"
-	case GasF2:
-		return "F2"
-	case GasH2O:
-		return "H2O"
-	case GasSO2:
-		return "SO2"
-	case GasH2S:
-		return "H2S"
-	}
-	return "?"
-}
-
 func gasMixLabel(gases map[AtmosphericGas]int) string {
 	if len(gases) == 0 {
 		return "—"
@@ -123,7 +91,7 @@ func gasMixLabel(gases map[AtmosphericGas]int) string {
 	})
 	parts := make([]string, 0, len(keys))
 	for _, k := range keys {
-		parts = append(parts, fmt.Sprintf("%s %d%%", gasNameLabel(k), gases[k]))
+		parts = append(parts, fmt.Sprintf("%s %d%%", k, gases[k]))
 	}
 	return strings.Join(parts, ", ")
 }

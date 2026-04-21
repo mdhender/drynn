@@ -41,3 +41,35 @@ const (
 	GasH2S   AtmosphericGas = 13
 	numGases                = 13
 )
+
+func (g AtmosphericGas) String() string {
+	switch g {
+	case GasH2:
+		return "H2"
+	case GasCH4:
+		return "CH4"
+	case GasHe:
+		return "He"
+	case GasNH3:
+		return "NH3"
+	case GasN2:
+		return "N2"
+	case GasCO2:
+		return "CO2"
+	case GasO2:
+		return "O2"
+	case GasHCl:
+		return "HCl"
+	case GasCl2:
+		return "Cl2"
+	case GasF2:
+		return "F2"
+	case GasH2O:
+		return "H2O"
+	case GasSO2:
+		return "SO2"
+	case GasH2S:
+		return "H2S"
+	}
+	return "?"
+}
