@@ -455,15 +455,21 @@ every candidate in the window is skipped, try the whole window again.
 
 Normalize quantities to integer percentages. Because `gases` is a map,
 Go's iteration order is randomized and **must not** be used as the
-source of logic. Copy the keys into a slice and shuffle it with the
-PRNG, then drive normalization from the shuffled slice — that is the
-only way to get deterministic output from a map-backed atmosphere.
+source of logic. Copy the keys into a slice, sort by gas, and shuffle it
+with the PRNG, then drive normalization from the shuffled slice — that is
+the only way to get deterministic output from a map-backed atmosphere.
 
 ```
 order := make([]AtmosphericGas, 0, len(gases))
 for g := range gases {
     order = append(order, g)
 }
+// Sort before shuffle: map iteration order is randomized, so without
+// this the PRNG permutes a non-deterministic starting sequence and the
+// overall output stops being reproducible.
+sort.Slice(order, func(i, j int) bool {
+    return order[i] < order[j]
+})
 rng.Shuffle(len(order), func(i, j int) {
     order[i], order[j] = order[j], order[i]
 })
@@ -479,9 +485,10 @@ gases[order[0]] += remainder
 ```
 
 Every downstream step that needs to walk `gases` in order must reuse
-this same shuffle-first pattern. Do not iterate a map anywhere that
-feeds logic (randomization targets, remainder recipients, slot
-selection, etc.).
+this same **sort-then-shuffle** pattern. Do not iterate a map anywhere
+that feeds logic (randomization targets, remainder recipients, slot
+selection, etc.), and do not skip the sort — a shuffle of a
+non-deterministic order is still non-deterministic.
 
 #### 11. Mining Difficulty (non-earth-like only)
 
@@ -638,15 +645,31 @@ else if tp.PressureClass > 0:
 #### 2c. Atmosphere Shift
 
 The template stores `Gases` as a map, which has no ordering. To apply
-the "slot 1 / slot 2" shift deterministically:
+the "slot 1 / slot 2" shift deterministically, use the same
+**sort-then-shuffle** pattern as Step 10 of generation:
 
 1. Copy `tp.Gases` keys into a slice `order`.
-2. Shuffle `order` using `rng.Shuffle`. Because `rng` is deterministic,
-   the result is reproducible.
-3. If `len(order) >= 3`, perform the shift on the second and third
+2. **Sort** `order` by gas id to produce a canonical pre-shuffle order.
+   This is the step that makes the output reproducible — without it,
+   the PRNG shuffles the randomized map-iteration order and nothing
+   downstream is deterministic.
+3. **Shuffle** `order` with `rng.Shuffle`. Because `rng` is seeded,
+   the resulting permutation is reproducible.
+4. If `len(order) >= 3`, perform the shift on the second and third
    entries (`order[1]` and `order[2]`):
 
 ```
+order := make([]AtmosphericGas, 0, len(tp.Gases))
+for g := range tp.Gases {
+    order = append(order, g)
+}
+sort.Slice(order, func(i, j int) bool {
+    return order[i] < order[j]
+})
+rng.Shuffle(len(order), func(i, j int) {
+    order[i], order[j] = order[j], order[i]
+})
+
 if len(order) >= 3:
     shift := rng.Roll(1, 25) + 10      // 11..35 percentage points
 
@@ -665,9 +688,10 @@ If `len(order) < 3`, no shift is applied. The check on "> 50" ensures
 the donor has enough mass to give; if neither does, the shift is
 skipped to avoid negative percentages.
 
-> Implementation note: the iteration of `rng.Shuffle` over `order` is
-> the determinism boundary. Do not iterate the map for logic — only
-> use the shuffled slice.
+> Implementation note: the sort establishes determinism (canonical
+> starting order) and the shuffle provides per-call variation. Do not
+> iterate the map for logic — always drive slot selection from the
+> sorted-then-shuffled slice.
 
 #### 2d. Diameter
 
@@ -769,10 +793,14 @@ return nil
    `Planet` during apply and is later used by race-initialization code
    to locate the home world.
 
-6. **Determinism requires a single `*prng.PRNG`.** All rolls in
-   both `GenerateHomeSystemTemplate` and `ApplyHomeSystemTemplate`
-   must come from the supplied rng, including `rng.Shuffle` used in
-   the atmosphere shift.
+6. **Determinism requires a single `*prng.PRNG` *and* a canonical
+   starting order for any map-keyed work.** All rolls in both
+   `GenerateHomeSystemTemplate` and `ApplyHomeSystemTemplate` must come
+   from the supplied rng, including `rng.Shuffle` used on atmosphere
+   slices. Before any such shuffle, the slice of gas keys must be
+   **sorted** — Go's map iteration is randomized, so shuffling an
+   unsorted key slice permutes a non-deterministic starting sequence
+   and breaks reproducibility. See Steps 10 and 2c for the pattern.
 
 ## Function Summary
 
