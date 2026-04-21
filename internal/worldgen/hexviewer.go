@@ -1,10 +1,18 @@
-package hexmap
+package worldgen
 
 import (
 	"bytes"
 	"fmt"
 	"math"
+
+	"github.com/mdhender/drynn/internal/hexes"
 )
+
+// viewerSystem is the data the SVG renderer needs per system.
+type viewerSystem struct {
+	Hex   hexes.Axial
+	Stars int
+}
 
 type viewerCell struct{ q, r int }
 
@@ -13,7 +21,7 @@ type viewerCell struct{ q, r int }
 // snapping is required because the generator already places systems on hexes.
 //
 // If systems is empty, a minimal empty map is returned.
-func SystemsToHTML(systems []System) ([]byte, error) {
+func SystemsToHTML(systems []viewerSystem) ([]byte, error) {
 	if len(systems) == 0 {
 		return renderHexHTML(nil, 1, 1, 0), nil
 	}
@@ -52,7 +60,7 @@ func SystemsToHTML(systems []System) ([]byte, error) {
 // SystemsToHTMLWithPixelSize is like SystemsToHTML but allows the caller to
 // override the pixel hex size used in the SVG. If pixSize <= 0, a suitable size
 // is derived automatically to fit within roughly 1280x1280.
-func SystemsToHTMLWithPixelSize(systems []System, pixSize float64) ([]byte, error) {
+func SystemsToHTMLWithPixelSize(systems []viewerSystem, pixSize float64) ([]byte, error) {
 	if len(systems) == 0 {
 		return renderHexHTML(nil, 1, 1, pixSize), nil
 	}
@@ -88,7 +96,7 @@ func SystemsToHTMLWithPixelSize(systems []System, pixSize float64) ([]byte, erro
 // RenderDiskHTML renders the full hex disk of the given radius and overlays any
 // systems that fall within that disk. This is useful when you want to see the
 // official galaxy boundary, not just the occupied bounding box.
-func RenderDiskHTML(radius int, systems []System) ([]byte, error) {
+func RenderDiskHTML(radius int, systems []viewerSystem) ([]byte, error) {
 	if radius < 0 {
 		return nil, fmt.Errorf("radius must be non-negative")
 	}
@@ -98,7 +106,7 @@ func RenderDiskHTML(radius int, systems []System) ([]byte, error) {
 
 // RenderDiskHTMLWithCoords is like RenderDiskHTML but optionally overlays
 // the axial (q,r) coordinates inside each occupied hex.
-func RenderDiskHTMLWithCoords(radius int, systems []System, showCoords bool) ([]byte, error) {
+func RenderDiskHTMLWithCoords(radius int, systems []viewerSystem, showCoords bool) ([]byte, error) {
 	if radius < 0 {
 		return nil, fmt.Errorf("radius must be non-negative")
 	}
@@ -121,19 +129,19 @@ func axialToPixel(q, r int, size float64) (float64, float64) {
 //
 // If pixSize <= 0, a suitable size is derived automatically to fit within
 // roughly 1280x1280.
-func RenderDiskSVG(radius int, systems []System, pixSize float64, showCoords bool) []byte {
+func RenderDiskSVG(radius int, systems []viewerSystem, pixSize float64, showCoords bool) []byte {
 	const (
 		maxDim = 1280.0
 		margin = 40.0
 	)
 	sqrt3 := math.Sqrt(3)
 
-	hexes := Disk(radius)
+	diskHexes := hexes.Disk(radius)
 
 	// Build a lookup of system star counts keyed by axial coords.
-	starMap := make(map[Axial]int, len(systems))
+	starMap := make(map[hexes.Axial]int, len(systems))
 	for _, s := range systems {
-		if Contains(radius, s.Hex) {
+		if hexes.Contains(radius, s.Hex) {
 			starMap[s.Hex] = s.Stars
 		}
 	}
@@ -154,13 +162,13 @@ func RenderDiskSVG(radius int, systems []System, pixSize float64, showCoords boo
 
 	// Compute pixel centers for every hex and track the bounding box.
 	type hexPix struct {
-		ax     Axial
+		ax     hexes.Axial
 		cx, cy float64
 	}
-	pixels := make([]hexPix, len(hexes))
+	pixels := make([]hexPix, len(diskHexes))
 	minX, minY := math.Inf(1), math.Inf(1)
 	maxX, maxY := math.Inf(-1), math.Inf(-1)
-	for i, h := range hexes {
+	for i, h := range diskHexes {
 		cx, cy := axialToPixel(h.Q, h.R, pixSize)
 		pixels[i] = hexPix{ax: h, cx: cx, cy: cy}
 		if cx < minX {
@@ -233,7 +241,7 @@ func RenderDiskSVG(radius int, systems []System, pixSize float64, showCoords boo
 
 // renderDiskHTML produces a self-contained HTML page with an inline SVG hex
 // grid shaped as a hexagonal disk.
-func renderDiskHTML(radius int, systems []System, pixSize float64, showCoords bool) []byte {
+func renderDiskHTML(radius int, systems []viewerSystem, pixSize float64, showCoords bool) []byte {
 	svg := RenderDiskSVG(radius, systems, pixSize, showCoords)
 
 	var buf bytes.Buffer

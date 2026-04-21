@@ -7,17 +7,15 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-
-	hexmap "github.com/mdhender/drynn/internal/worldgen/hexes"
 )
 
 // ToHTML renders a self-contained HTML page showing the galaxy's hex map.
 // If showPlanets is true, a per-system planet report is appended below the
 // map. If pixelSize <= 0, a size is derived to fit within roughly 1280x1280.
 func (g *Galaxy) ToHTML(pixelSize float64, showCoords, showPlanets bool) []byte {
-	systems := make([]hexmap.System, 0, len(g.Systems))
+	systems := make([]viewerSystem, 0, len(g.Systems))
 	for _, s := range g.Systems {
-		systems = append(systems, hexmap.System{Hex: s.Hex, Stars: len(s.Stars)})
+		systems = append(systems, viewerSystem{Hex: s.Hex, Stars: len(s.Stars)})
 	}
 
 	var buf bytes.Buffer
@@ -27,7 +25,7 @@ func (g *Galaxy) ToHTML(pixelSize float64, showCoords, showPlanets bool) []byte 
 	buf.WriteString("</head>\n<body>\n")
 
 	buf.WriteString("<div class=\"map\">\n")
-	buf.Write(hexmap.RenderDiskSVG(g.Radius, systems, pixelSize, showCoords))
+	buf.Write(RenderDiskSVG(g.Radius, systems, pixelSize, showCoords))
 	buf.WriteString("</div>\n")
 
 	if showPlanets {
@@ -59,7 +57,7 @@ func writePlanetReport(buf *bytes.Buffer, g *Galaxy) {
 		fmt.Fprintf(buf, "<h2>System %d,%d</h2>\n", sys.Hex.Q, sys.Hex.R)
 		for i, star := range sys.Stars {
 			fmt.Fprintf(buf, "<h3>Star %d — %s %s, size %d</h3>\n",
-				i+1, starKindLabel(star.kind), starColorLabel(star.color), star.size)
+				i+1, star.Kind, star.Color, star.Size)
 			if len(star.Planets) == 0 {
 				fmt.Fprintln(buf, `<p class="empty">No planets.</p>`)
 				continue
@@ -75,40 +73,6 @@ func writePlanetReport(buf *bytes.Buffer, g *Galaxy) {
 		}
 	}
 	fmt.Fprintln(buf, `</section>`)
-}
-
-func starKindLabel(k starType) string {
-	switch k {
-	case starDwarf:
-		return "dwarf"
-	case starDegenerate:
-		return "degenerate"
-	case starMainSequence:
-		return "main-sequence"
-	case starGiant:
-		return "giant"
-	}
-	return "unknown"
-}
-
-func starColorLabel(c starColor) string {
-	switch c {
-	case colorBlue:
-		return "blue"
-	case colorBlueWhite:
-		return "blue-white"
-	case colorWhite:
-		return "white"
-	case colorYellowWhite:
-		return "yellow-white"
-	case colorYellow:
-		return "yellow"
-	case colorOrange:
-		return "orange"
-	case colorRed:
-		return "red"
-	}
-	return "unknown"
 }
 
 func gasNameLabel(g AtmosphericGas) string {

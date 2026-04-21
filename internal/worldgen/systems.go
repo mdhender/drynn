@@ -3,12 +3,12 @@
 package worldgen
 
 import (
-	hexmap "github.com/mdhender/drynn/internal/worldgen/hexes"
+	"github.com/mdhender/drynn/internal/hexes"
 )
 
 type System struct {
-	Hex   hexmap.Axial
+	Hex   hexes.Axial
 	Stars []*Star
 
-	homeSystem bool
+	HomeSystem bool
 }

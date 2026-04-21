@@ -3,31 +3,67 @@
 package worldgen
 
 type Star struct {
-	kind  starType
-	color starColor
-	size  int // 0..9
+	Kind  StarType
+	Color StarColor
+	Size  int // 0..9
 
-	numPlanets int // 1..9
+	NumPlanets int // 1..9
 	Planets    []*Planet
 }
 
-type starType int
+type StarType int
 
 const (
-	starDwarf        starType = 1
-	starDegenerate   starType = 2
-	starMainSequence starType = 3
-	starGiant        starType = 4
+	StarDwarf        StarType = 1
+	StarDegenerate   StarType = 2
+	StarMainSequence StarType = 3
+	StarGiant        StarType = 4
 )
 
-type starColor int
+func (t StarType) String() string {
+	switch t {
+	case StarDwarf:
+		return "dwarf"
+	case StarDegenerate:
+		return "degenerate"
+	case StarMainSequence:
+		return "main-sequence"
+	case StarGiant:
+		return "giant"
+	default:
+		return "unknown"
+	}
+}
+
+type StarColor int
 
 const (
-	colorBlue        starColor = 1
-	colorBlueWhite   starColor = 2
-	colorWhite       starColor = 3
-	colorYellowWhite starColor = 4
-	colorYellow      starColor = 5
-	colorOrange      starColor = 6
-	colorRed         starColor = 7
+	ColorBlue        StarColor = 1
+	ColorBlueWhite   StarColor = 2
+	ColorWhite       StarColor = 3
+	ColorYellowWhite StarColor = 4
+	ColorYellow      StarColor = 5
+	ColorOrange      StarColor = 6
+	ColorRed         StarColor = 7
 )
+
+func (c StarColor) String() string {
+	switch c {
+	case ColorBlue:
+		return "blue"
+	case ColorBlueWhite:
+		return "blue-white"
+	case ColorWhite:
+		return "white"
+	case ColorYellowWhite:
+		return "yellow-white"
+	case ColorYellow:
+		return "yellow"
+	case ColorOrange:
+		return "orange"
+	case ColorRed:
+		return "red"
+	default:
+		return "unknown"
+	}
+}

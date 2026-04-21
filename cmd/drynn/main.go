@@ -25,7 +25,6 @@ import (
 	"github.com/mdhender/drynn/internal/config"
 	"github.com/mdhender/drynn/internal/prng"
 	"github.com/mdhender/drynn/internal/worldgen"
-	hexmap "github.com/mdhender/drynn/internal/worldgen/hexes"
 )
 
 var httpClient = &http.Client{Timeout: 10 * time.Second}
@@ -226,19 +225,27 @@ func run(args []string) error {
 				seed1, seed2 = cryptoRandSeeds()
 			}
 			fmt.Printf("seeds: %d %d\n", seed1, seed2)
-			rng := prng.NewFromSeed(seed1, seed2)
-			gen := hexmap.NewGenerator(rng)
-			systems, err := gen.Generate(*testHexRadius, *testHexSystems, *testHexMinDist, *testHexMerge)
+
+			galaxy, err := worldgen.Generate(
+				worldgen.WithDesiredRadius(*testHexRadius),
+				worldgen.WithDesiredNumberOfSystems(*testHexSystems),
+				worldgen.WithMinimumDistance(*testHexMinDist),
+				worldgen.WithMerge(*testHexMerge),
+				worldgen.WithPRNG(prng.NewFromSeed(seed1, seed2)),
+			)
 			if err != nil {
 				_, _ = fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+				if galaxy == nil {
+					return err
+				}
 			}
 			fmt.Printf("placed %d systems (%d total stars, %d multi-star) in radius-%d disk\n",
-				len(systems), hexmap.TotalStars(systems), hexmap.CountMultiStar(systems), *testHexRadius)
+				len(galaxy.Systems), worldgen.TotalStars(galaxy.Systems), worldgen.CountMultiStar(galaxy.Systems), *testHexRadius)
 
 			// Star-count breakdown.
 			var one, two, three, four, fivePlus int
-			for _, s := range systems {
-				switch s.Stars {
+			for _, s := range galaxy.Systems {
+				switch len(s.Stars) {
 				case 1:
 					one++
 				case 2:
@@ -254,11 +261,11 @@ func run(args []string) error {
 			fmt.Printf("  1-star: %d   2-star: %d   3-star: %d   4-star: %d   5+-star: %d\n", one, two, three, four, fivePlus)
 
 			// Pairwise distance statistics.
-			if len(systems) >= 2 {
+			if len(galaxy.Systems) >= 2 {
 				var distances []int
-				for i := 0; i < len(systems); i++ {
-					for j := i + 1; j < len(systems); j++ {
-						distances = append(distances, systems[i].Hex.Distance(systems[j].Hex))
+				for i := 0; i < len(galaxy.Systems); i++ {
+					for j := i + 1; j < len(galaxy.Systems); j++ {
+						distances = append(distances, galaxy.Systems[i].Hex.Distance(galaxy.Systems[j].Hex))
 					}
 				}
 				sort.Ints(distances)
@@ -278,14 +285,14 @@ func run(args []string) error {
 					len(distances), distances[0], distances[n-1], mean, median)
 
 				// Nearest-neighbor distance statistics.
-				nn := make([]int, len(systems))
-				for i := range systems {
+				nn := make([]int, len(galaxy.Systems))
+				for i := range galaxy.Systems {
 					nn[i] = math.MaxInt
-					for j := range systems {
+					for j := range galaxy.Systems {
 						if i == j {
 							continue
 						}
-						if d := systems[i].Hex.Distance(systems[j].Hex); d < nn[i] {
+						if d := galaxy.Systems[i].Hex.Distance(galaxy.Systems[j].Hex); d < nn[i] {
 							nn[i] = d
 						}
 					}
@@ -334,10 +341,7 @@ func run(args []string) error {
 				}
 			}
 
-			html, err := hexmap.RenderDiskHTMLWithCoords(*testHexRadius, systems, *testHexCoords)
-			if err != nil {
-				return err
-			}
+			html := galaxy.ToHTML(0, *testHexCoords, false)
 			outPath := filepath.Join(*testHexOut, "hexmap.html")
 			if err := os.WriteFile(outPath, html, 0o644); err != nil {
 				return err
