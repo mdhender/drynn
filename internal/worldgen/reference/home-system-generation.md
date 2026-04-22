@@ -3,13 +3,20 @@
 > **Status: Not yet implemented.** The rules below describe planned behavior
 > for a future implementation. The active `worldgen` package does not yet
 > include home system template creation, system selection, template
-> application, or species initialization.
+> application, or race/empire initialization.
 
 This document specifies the planned rules for generating a home system for
-a new species in Far Horizons. It covers template creation, system selection,
-template application with randomization, and species initialization
+a new race. It covers template creation, system selection, template
+application with randomization, and race + empire initialization
 (gas tolerances, tech levels, mining/manufacturing bases). It is intended
 as a design reference for future implementation.
+
+> **Terminology.** This document uses the drynn-native terms `Race` (the
+> species-intrinsic biology and home-planet baseline; see
+> `project/reference/empire-model.md`) and `Empire` (the actor that
+> accrues tech levels and operates colonies). Older-engine docs used a
+> single combined `Species` concept; biology and home-planet snapshot
+> map to Race, tech levels and colony state map to Empire.
 
 For planet generation details, see [planet-generation.md](planet-generation.md).
 For LSN calculations, see [lsn-determination.md](lsn-determination.md).
@@ -38,7 +45,7 @@ HP_AVAILABLE_POP = 1500   // initial population units on home planet
 
 | Name        | Description                  |
 |-------------|------------------------------|
-| HOME_PLANET | Planet is a species' home    |
+| HOME_PLANET | Planet is a race's home      |
 | POPULATED   | Planet has population        |
 
 ### Tech Level Indices
@@ -54,21 +61,40 @@ HP_AVAILABLE_POP = 1500   // initial population units on home planet
 
 ## Type Definitions
 
-### Species
+### Race
 
 ```
-Species {
-    x, y, z           int        // coordinates of home system
-    pn                int        // orbit number of home planet
-    required_gas      int        // gas id the species must breathe
+Race {
+    home_planet_id    int64      // FK to the race's home planet
+    temperature_class int        // snapshotted from home planet at seeding
+    pressure_class    int        // snapshotted from home planet at seeding
+    gas               [4]int     // snapshotted from home planet at seeding
+    gas_percent       [4]int     // snapshotted from home planet at seeding
+    required_gas      int        // gas id the race must breathe
     required_gas_min  int        // minimum acceptable percentage
     required_gas_max  int        // maximum acceptable percentage
-    neutral_gas       [6]int     // gases harmless to the species
-    poison_gas        [6]int     // gases toxic to the species
-    tech_level        [6]int     // current tech levels (indexed by MI..BI)
-    num_namplas       int        // number of named planets
+    neutral_gas       [6]int     // gases harmless to the race
+    poison_gas        [6]int     // gases toxic to the race
 }
 ```
+
+### Empire
+
+```
+Empire {
+    race_id           int64      // FK to the race this empire belongs to
+    tech_level        [6]int     // current tech levels (indexed by MI..BI)
+}
+```
+
+> The older engine used a single `Species` struct that combined the
+> fields above. In drynn, biology and the home-planet snapshot are
+> Race-scoped (shared across all empires of the same race); tech
+> levels and colony state are Empire-scoped. Old-engine convenience
+> fields `x, y, z, pn, num_namplas` are not carried over — home-system
+> coordinates are derived via `Race.home_planet_id` → `Planet` → `Star
+> System`, and per-empire colony counts are derived from colony
+> queries.
 
 ### Named Planet (Colony)
 
@@ -92,12 +118,13 @@ Home system generation is a multi-phase process:
 1. **Template creation** — Generate a set of home system planet templates
    (one per planet count 3–9), each containing planets with an earth-like
    candidate. This is done once at game setup.
-2. **System selection** — When a species is created, find a suitable star
+2. **System selection** — When a race is created, find a suitable star
    system to become its home system.
 3. **Template application** — Replace the selected system's planets with
    a template, applying minor random variations.
-4. **Species initialization** — Set the species' gas tolerances, tech
-   levels, and home colony properties based on the home planet.
+4. **Race and empire initialization** — Set the race's home-planet
+   snapshot and biology (gas tolerances); set each founding empire's
+   tech levels; build each empire's home colony.
 
 ## Phase 1 — Template Creation
 
@@ -124,14 +151,14 @@ regenerated from scratch until the system produces a `special == IDEAL_HOME_PLAN
 
 ## Phase 2 — System Selection
 
-When creating a new species, a star system must be selected and converted
+When creating a new race, a star system must be selected and converted
 into a home system.
 
 ### Step 1 — Find Existing Home Systems
 
 Scan all star systems for planets with `special == IDEAL_HOME_PLANET`
-that are not already claimed by another species. A system is "claimed" if
-any existing species has its home coordinates matching the system.
+that are not already claimed by another race. A system is "claimed" if
+any existing Race has its `home_planet_id` pointing into the system.
 
 If unclaimed candidate systems exist, randomly choose one.
 
@@ -161,7 +188,7 @@ If multiple systems meet the criteria, one is chosen at random (the
 candidate list is shuffled using a Fisher-Yates shuffle and the first
 qualifying system is returned).
 
-If no systems meet all criteria, species creation fails.
+If no systems meet all criteria, race creation fails.
 
 ### Step 3 — Convert to Home System
 
@@ -258,22 +285,28 @@ data for each planet:
 
 Set `star.home_system = true`.
 
-## Phase 4 — Species Initialization
+## Phase 4 — Race and Empire Initialization
 
-After the home system is prepared, initialize the species data and its
-home colony.
+After the home system is prepared, initialize the Race row (shared by
+every empire seeded on this home planet) and one Empire row per
+founding seat, then build each empire's home colony.
 
-### Step 1 — Tech Levels
+> In the drynn split, Steps 2–3 populate the Race row and Step 1
+> populates each Empire row. Multiple empires seeded on the same home
+> planet share a single Race and run Steps 2–3 once; Step 1 is run
+> per-empire.
 
-Tech levels are set from player input:
+### Step 1 — Empire Tech Levels
+
+Tech levels are per-empire and set from each seat's player input:
 
 ```
-species.tech_level[MI] = 10       // fixed
-species.tech_level[MA] = 10       // fixed
-species.tech_level[ML] = input.ml // player-chosen
-species.tech_level[GV] = input.gv // player-chosen
-species.tech_level[LS] = input.ls // player-chosen
-species.tech_level[BI] = input.bi // player-chosen
+empire.tech_level[MI] = 10       // fixed
+empire.tech_level[MA] = 10       // fixed
+empire.tech_level[ML] = input.ml // player-chosen
+empire.tech_level[GV] = input.gv // player-chosen
+empire.tech_level[LS] = input.ls // player-chosen
+empire.tech_level[BI] = input.bi // player-chosen
 ```
 
 **Constraint:** The four player-chosen tech levels must sum to ≤ 15:
@@ -287,7 +320,7 @@ input.ml + input.gv + input.ls + input.bi <= 15
 The required gas is always oxygen:
 
 ```
-species.required_gas = O2
+race.required_gas = O2
 ```
 
 Compute the acceptable percentage range from the home planet's oxygen
@@ -298,21 +331,21 @@ for each gas slot i in 0..3:
     if home_planet.gas[i] == O2:
         o2_percent = home_planet.gas_percent[i]
 
-species.required_gas_min = o2_percent / 2
-if species.required_gas_min < 1:
-    species.required_gas_min = 1
+race.required_gas_min = o2_percent / 2
+if race.required_gas_min < 1:
+    race.required_gas_min = 1
 
-species.required_gas_max = 2 * o2_percent
-if species.required_gas_max < 20:
-    species.required_gas_max += 20
-else if species.required_gas_max > 100:
-    species.required_gas_max = 100
+race.required_gas_max = 2 * o2_percent
+if race.required_gas_max < 20:
+    race.required_gas_max += 20
+else if race.required_gas_max > 100:
+    race.required_gas_max = 100
 ```
 
 ### Step 3 — Neutral and Poison Gases
 
 Build a set of "good gases" (gases that are either required or neutral
-to the species).
+to the race).
 
 #### 3a — Start with Home Planet Gases
 
@@ -353,7 +386,7 @@ while num_neutral < 7:
         num_neutral++
 ```
 
-#### 3d — Assign Neutral Gases to Species
+#### 3d — Assign Neutral Gases to Race
 
 The 6 neutral gas slots are filled with all good gases **except** O2
 (which is the required gas, not a neutral gas), in ascending order of
@@ -363,11 +396,11 @@ gas id:
 slot = 0
 for gas_id = 1 to 13:
     if good_gas[gas_id] AND gas_id != O2:
-        species.neutral_gas[slot] = gas_id
+        race.neutral_gas[slot] = gas_id
         slot++
 ```
 
-#### 3e — Assign Poison Gases to Species
+#### 3e — Assign Poison Gases to Race
 
 The 6 poison gas slots are filled with all gases that are **not** good,
 in ascending order of gas id:
@@ -376,7 +409,7 @@ in ascending order of gas id:
 slot = 0
 for gas_id = 1 to 13:
     if NOT good_gas[gas_id]:
-        species.poison_gas[slot] = gas_id
+        race.poison_gas[slot] = gas_id
         slot++
 ```
 
@@ -404,10 +437,11 @@ All other colony fields are initialized to zero.
 
 ### Step 5 — Mining and Manufacturing Bases
 
-The initial economic capacity is derived from the MI and MA tech levels:
+The initial economic capacity is derived from the empire's MI and MA
+tech levels:
 
 ```
-base = species.tech_level[MI] + species.tech_level[MA]
+base = empire.tech_level[MI] + empire.tech_level[MA]
 base = 25 * base + roll(1, base) + roll(1, base) + roll(1, base)
 ```
 
@@ -415,47 +449,57 @@ Mining base (scaled × 10):
 
 ```
 colony.mi_base = (home_planet.mining_difficulty * base)
-                 / (10 * species.tech_level[MI])
+                 / (10 * empire.tech_level[MI])
 ```
 
 Manufacturing base (scaled × 10):
 
 ```
-colony.ma_base = (10 * base) / species.tech_level[MA]
+colony.ma_base = (10 * base) / empire.tech_level[MA]
 ```
 
 The initial raw material production is:
 
 ```
-raw_materials = (10 * species.tech_level[MI] * colony.mi_base)
+raw_materials = (10 * empire.tech_level[MI] * colony.mi_base)
                 / home_planet.mining_difficulty
 ```
 
 The initial production capacity is:
 
 ```
-production_capacity = (species.tech_level[MA] * colony.ma_base) / 10
+production_capacity = (empire.tech_level[MA] * colony.ma_base) / 10
 ```
 
 > Both formulas are provided for verification. The stored values are
 > `mi_base` and `ma_base`; production is derived at runtime.
 
-### Step 6 — Species Record
+### Step 6 — Race Home-Planet Snapshot
+
+Copy the LSN-relevant environmental fields from the home planet onto
+the Race row. These are snapshotted at seeding and never mutated
+thereafter — they're what keeps LSN stable if the home planet is
+later terraformed.
 
 ```
-species.x            = star.x
-species.y            = star.y
-species.z            = star.z
-species.pn           = home_planet.orbit
-species.num_namplas   = 1
+race.home_planet_id    = home_planet.id
+race.temperature_class = home_planet.temperature_class
+race.pressure_class    = home_planet.pressure_class
+race.gas               = home_planet.gas
+race.gas_percent       = home_planet.gas_percent
 ```
+
+> The old-engine `species.x/y/z/pn/num_namplas` convenience fields
+> are not carried over. Coordinates are derived via
+> `race.home_planet_id` → `Planet` → `Star System`; per-empire colony
+> counts are derived from colony queries.
 
 ### Step 7 — Mark System as Visited
 
-Add the species to the home star's visited set:
+Add the race to the home star's visited set:
 
 ```
-star.visited_by.add(species_number)
+star.visited_by.add(race_id)
 ```
 
 ## Boundary Notes

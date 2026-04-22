@@ -337,6 +337,6 @@ galaxy, err := worldgen.Generate(
 
 ## Boundary Note
 
-Galaxy creation does **not** assign home systems to species. Home system
+Galaxy creation does **not** assign home systems to races. Home system
 assignment occurs in a separate step that is outside the scope of this
 document.

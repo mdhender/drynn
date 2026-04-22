@@ -244,13 +244,49 @@ BEFORE UPDATE ON agents
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
 
+CREATE TABLE races (
+    id BIGSERIAL PRIMARY KEY,
+    game_id BIGINT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+    home_planet_id BIGINT NOT NULL,
+    name TEXT NOT NULL,
+    temperature_class INT NOT NULL,
+    pressure_class INT NOT NULL,
+    gas INT[] NOT NULL,
+    gas_percent INT[] NOT NULL,
+    required_gas INT NOT NULL,
+    required_gas_min INT NOT NULL,
+    required_gas_max INT NOT NULL,
+    neutral_gas INT[] NOT NULL,
+    poison_gas INT[] NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT races_game_id_key UNIQUE (game_id, id),
+    CONSTRAINT races_game_home_planet_key UNIQUE (game_id, home_planet_id),
+    CONSTRAINT races_home_planet_fk FOREIGN KEY (game_id, home_planet_id) REFERENCES planets(game_id, id) ON DELETE CASCADE,
+    CONSTRAINT races_temperature_class_check CHECK (temperature_class BETWEEN 1 AND 30),
+    CONSTRAINT races_pressure_class_check CHECK (pressure_class BETWEEN 0 AND 29),
+    CONSTRAINT races_gas_len_check CHECK (array_length(gas, 1) = 4),
+    CONSTRAINT races_gas_percent_len_check CHECK (array_length(gas_percent, 1) = 4),
+    CONSTRAINT races_neutral_gas_len_check CHECK (array_length(neutral_gas, 1) = 6),
+    CONSTRAINT races_poison_gas_len_check CHECK (array_length(poison_gas, 1) = 6)
+);
+
+CREATE UNIQUE INDEX races_game_name_lower_key ON races(game_id, lower(name));
+
+CREATE TRIGGER races_set_updated_at
+BEFORE UPDATE ON races
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
+
 CREATE TABLE empires (
     id BIGSERIAL PRIMARY KEY,
     game_id BIGINT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+    race_id BIGINT NOT NULL,
     name TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT empires_game_id_key UNIQUE (game_id, id)
+    CONSTRAINT empires_game_id_key UNIQUE (game_id, id),
+    CONSTRAINT empires_race_fk FOREIGN KEY (game_id, race_id) REFERENCES races(game_id, id) ON DELETE CASCADE
 );
 
 CREATE UNIQUE INDEX empires_game_name_lower_key ON empires(game_id, lower(name));

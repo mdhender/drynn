@@ -214,9 +214,35 @@ Table agents {
   Note: 'Global (no game_id); rows immutable once created — new versions add new rows.'
 }
 
+Table races {
+  id bigserial [pk]
+  game_id bigint [not null]
+  home_planet_id bigint [not null]
+  name text [not null, note: 'UNIQUE (game_id, lower(name)) — case-insensitive per-game']
+  temperature_class int [not null, note: '1..30, snapshotted from home planet at seeding']
+  pressure_class int [not null, note: '0..29, snapshotted from home planet at seeding']
+  gas "int[]" [not null, note: 'length 4; snapshotted from home planet at seeding']
+  gas_percent "int[]" [not null, note: 'length 4; snapshotted from home planet at seeding']
+  required_gas int [not null]
+  required_gas_min int [not null]
+  required_gas_max int [not null]
+  neutral_gas "int[]" [not null, note: 'length 6']
+  poison_gas "int[]" [not null, note: 'length 6']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (game_id, id) [unique, name: 'races_game_id_key']
+    (game_id, home_planet_id) [unique, name: 'races_game_home_planet_key']
+  }
+
+  Note: 'Immutable after creation (except name). Home-planet snapshot fields must not be mutated by terraforming; they are the LSN baseline.'
+}
+
 Table empires {
   id bigserial [pk]
   game_id bigint [not null]
+  race_id bigint [not null]
   name text [not null, note: 'UNIQUE (game_id, lower(name)) — case-insensitive per-game']
   created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz [not null, default: `now()`]
@@ -447,7 +473,11 @@ Ref: planets.(game_id, system_id) > star_systems.(game_id, id) [delete: cascade]
 Ref: home_worlds.(game_id, planet_id) > planets.(game_id, id) [delete: cascade]
 Ref: natural_resources.(game_id, planet_id) > planets.(game_id, id) [delete: cascade]
 
+Ref: races.game_id > games.id [delete: cascade]
+Ref: races.(game_id, home_planet_id) > planets.(game_id, id) [delete: cascade]
+
 Ref: empires.game_id > games.id [delete: cascade]
+Ref: empires.(game_id, race_id) > races.(game_id, id) [delete: cascade]
 Ref: players.game_id > games.id [delete: cascade]
 Ref: players.account_id > users.id [delete: restrict]
 

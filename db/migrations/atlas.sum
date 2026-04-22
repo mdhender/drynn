@@ -1,4 +1,4 @@
-h1:VACoSicKFn2xS1zmrAHu5qhC5OiCFM0PvZFpJfvR7ws=
+h1:1mpax9Ggd66wAbDIiwgFRqyv5AQDU8B7oPyZYP4bPAY=
 20260410110000_init.sql h1:BdJVDRmP6no0eYutdS7PA4bkD+dPtiFsGF7elds4nYg=
 20260410143000_add_jwt_signing_keys.sql h1:lbIJ1AL8jU7UIrCkZMWMffr1HCm0Bo1yFJ+qBYXHIsw=
 20260411000045_add_invitations_and_smtp.sql h1:+IoBkuZCdOPEPLXClJCUqWR8GOsblIOpR72MyizsLVg=
@@ -10,3 +10,4 @@ h1:VACoSicKFn2xS1zmrAHu5qhC5OiCFM0PvZFpJfvR7ws=
 20260411225710_drop_mailgun_settings.sql h1:ZeJJeNbi0U6dP0dxO3Y55fXiFV/8RsmwYfAZkrF1Jvk=
 20260412011433_add_tester_role.sql h1:PRdmkeIrL9HkQhXbB0W5urCW/t5tq5dW/b60my9b+d0=
 20260417040157_add_game_schema.sql h1:ziXhGI0N7b3lJ1okPVV2P2GfaJ1V3uAu8VmjOPXPxDs=
+20260422003832_add_race_table.sql h1:XoddTctClwllwsRRmEpqbojeK+3ddwoV0tNbce54efQ=

@@ -1,8 +1,8 @@
 # Empire Model Reference
 
-**STATUS: DRAFT.** Reconciled with current architecture and translated into `db/schema.sql` (migration `20260417040157_add_game_schema.sql`). All prior open questions are resolved. Coding agents may build against this spec.
+**STATUS: DRAFT.** Reconciled with current architecture and translated into `db/schema.sql` (migrations `20260417040157_add_game_schema.sql` and `20260422003832_add_race_table.sql`). All prior open questions are resolved. Coding agents may build against this spec.
 
-Technical reference for the empire side of the drynn game model: the Empire itself, the Player entity that represents a human seat in a game, the Agent entity that represents an engine strategy, and the `empire_control` bridge that records who currently operates each empire.
+Technical reference for the empire side of the drynn game model: the Race that groups empires seeded from the same home planet, the Empire itself, the Player entity that represents a human seat in a game, the Agent entity that represents an engine strategy, and the `empire_control` bridge that records who currently operates each empire.
 
 Application-level authorization (`role`) is out of scope for this document. See `project/explanation/roles-membership-and-status.md` for the distinction between application roles and game participation. Vacation — an out-of-game player concept — is explained in `project/explanation/vacation-mode.md`. Empire-owned assets are defined in `world-model.md` and (forthcoming) `units-model.md`.
 
@@ -10,6 +10,7 @@ Application-level authorization (`role`) is out of scope for this document. See 
 
 This document defines:
 
+- `Race` — a collective identity shared by empires seeded from the same home planet; owns the LSN-relevant home-planet baseline and species-intrinsic biology.
 - `Empire` — a faction in a game.
 - `Player` — an account's seat in a specific game.
 - `Agent` — a shared, versioned engine strategy that can operate a seat.
@@ -28,6 +29,9 @@ It does not define the Game entity (see `game-model.md`), account-level authoriz
 ## Data Shape
 
 ```
+Game              1 — N  Race
+Race              N — 1  Planet                 (home planet; historical pointer)
+Race              1 — N  Empire
 Game              1 — N  Empire
 Game              1 — N  Player
 Game              1 — N  Vessel
@@ -58,23 +62,66 @@ Farming Group     N — 1  Natural Resource
   - player (via the account behind the referenced Player row) if `Player ID IS NOT NULL`, otherwise
   - no one — the empire is uncontrolled for the turn. Uncontrolled empires are mechanically processed for production and attrition; no orders are created.
 
-## Empire
+## Race
 
-A faction in a game. Empires persist for the lifetime of a game.
+A collective identity shared by empires seeded from the same home planet. Race persists for the life of the game, independent of its member empires.
 
-| Field   | Type   | Description                     |
-|---------|--------|---------------------------------|
-| ID      | int64  | Internal identifier             |
-| Game ID | int64  | The game this empire belongs to |
-| Name    | string | Empire name                     |
+Race exists because drynn's victory conditions and LSN calculations reason about a stable baseline that must not change during play. If the only home-planet link were the current `Planet` row, a warring empire could terraform a race's home planet and invalidate every LSN calculation for every member empire of that race. Race solves this by snapshotting the LSN-relevant environmental fields at seeding time and owning the species-intrinsic biological tolerances directly.
+
+| Field             | Type        | Description                                                     |
+|-------------------|-------------|-----------------------------------------------------------------|
+| ID                | int64       | Internal identifier                                             |
+| Game ID           | int64       | The game this race belongs to                                   |
+| Home Planet ID    | int64       | The planet this race was seeded on (historical pointer)         |
+| Name              | string      | Race name                                                       |
+| Temperature Class | int (1..30) | Home planet temperature class, snapshotted at seeding           |
+| Pressure Class    | int (0..29) | Home planet pressure class, snapshotted at seeding              |
+| Gas               | int[4]      | Home planet atmospheric gas slots, snapshotted at seeding       |
+| Gas Percent       | int[4]      | Home planet atmospheric gas percentages, snapshotted at seeding |
+| Required Gas      | int         | Gas id this race must breathe                                   |
+| Required Gas Min  | int         | Minimum acceptable percentage of required gas                   |
+| Required Gas Max  | int         | Maximum acceptable percentage of required gas                   |
+| Neutral Gas       | int[6]      | Gas ids harmless to this race                                   |
+| Poison Gas        | int[6]      | Gas ids toxic to this race                                      |
 
 Constraints:
 
 - **PRIMARY KEY (ID)**; **UNIQUE (Game ID, ID)** — parent-key shape for composite FKs per A1.
+- **UNIQUE (Game ID, Home Planet ID)** — at most one race per home planet per game. Re-seeding a different race on the same planet is not permitted by design.
+- **UNIQUE (Game ID, lower(Name))** — case-insensitive per-game uniqueness. Normalization pipeline specified in `name-normalization.md`.
+- **FOREIGN KEY (Game ID, Home Planet ID) REFERENCES planets(Game ID, ID)** — per A1.
+- **CHECK (Temperature Class BETWEEN 1 AND 30)**; **CHECK (Pressure Class BETWEEN 0 AND 29)**.
+
+Notes:
+
+- The LSN-relevant snapshot fields (`Temperature Class` through `Gas Percent`) and the biology fields (`Required Gas` through `Poison Gas`) MUST NOT be updated after race creation. `Name` may be renamed by admin action.
+- `Home Planet ID` is a historical pointer, not a data source for LSN. Full LSN and Approximate LSN both read home-side environmental fields from the Race row, never from the current `Planet` row — this is the invariant that keeps LSN stable when the home planet is terraformed.
+- Race is the "species" concept from older-engine documentation; the two terms are synonymous in drynn. The worldgen reference docs under `internal/worldgen/reference/` have been translated accordingly.
+- Race persists for the life of the game even if every member empire is eliminated. Membership is fixed at game setup; a Race is never re-seeded on the same planet after elimination.
+- The `Required Gas` / `Required Gas Min|Max` / `Neutral Gas` / `Poison Gas` fields are used by Full LSN during gameplay; Approximate LSN (used during galaxy creation) does not reference them. See `internal/worldgen/reference/lsn-determination.md`.
+- Race is the grouping used by shared-race victory conditions (e.g., "a single race controls a majority of habitable planets for N sustained turns"). Victory-rule specifics are out of scope for this document.
+
+## Empire
+
+A faction in a game. Empires persist for the lifetime of a game.
+
+| Field   | Type   | Description                         |
+|---------|--------|-------------------------------------|
+| ID      | int64  | Internal identifier                 |
+| Game ID | int64  | The game this empire belongs to     |
+| Race ID | int64  | The race this empire is a member of |
+| Name    | string | Empire name                         |
+
+Constraints:
+
+- **PRIMARY KEY (ID)**; **UNIQUE (Game ID, ID)** — parent-key shape for composite FKs per A1.
+- **FOREIGN KEY (Game ID, Race ID) REFERENCES races(Game ID, ID)** — per A1. The Race's `Game ID` must match the Empire's `Game ID`.
 - **UNIQUE (Game ID, lower(Name))** — case-insensitive per-game uniqueness. Normalization pipeline specified in `name-normalization.md`.
 
 Notes:
 
+- Every empire belongs to exactly one race, assigned at seeding and immutable thereafter. Empires seeded on the same home planet at game setup share the same `Race ID`.
+- LSN calculations for an empire read home-side environmental fields and biology tolerances from the empire's Race row, never from the current `Planet` row of the race's home planet. See `internal/worldgen/reference/lsn-determination.md`.
 - Empire-owned assets (colonies, ships, infrastructure, inventory, jump point knowledge) FK to `Empire.ID` and are defined in `world-model.md` and `units-model.md`. Control changes on `empire_control` never move assets between empires; assets stay with the Empire row.
 - There is no status column on Empire. An empire with no controller (both `empire_control.Player ID` and `Agent ID` NULL) creates no orders and is mechanically processed for production and attrition. Over time its units may migrate to other empires via game mechanics; that migration does not delete the Empire record.
 - Empires may also lose assets to other empires (seizure) or to independence; those mechanics are out of scope for this document.
@@ -459,7 +506,8 @@ Each transition lists only the fields it changes.
 
 ### Game Setup
 
-- Create Empire rows.
+- Create Race rows, one per home planet seeded by the home-system generator. Snapshot the home planet's `temperature_class`, `pressure_class`, `gas`, and `gas_percent` into the Race row at creation time. Assign the race's biology fields (`required_gas`, tolerances, neutrals, poisons) per the home-system generation rules (see `internal/worldgen/reference/home-system-generation.md`).
+- Create Empire rows. Every Empire FKs to exactly one Race; empires seeded on the same home planet share a Race.
 - Create one `empire_control` row per Empire with `Player ID = NULL`, `Agent ID = NULL`, `GM Set = false`.
 - Create the GM Player row(s) with `Is GM = true`, `Status = 'active'`.
 - For each joining account, create a Player row (`Is GM = false`, `Status = 'active'`) and assign it by setting `empire_control.Player ID` for one empire.
@@ -509,4 +557,4 @@ Not supported in any environment. Reassigning a seat from one account to another
 
 ## Open Questions
 
-None. All prior open questions are resolved and the entities defined here are present in `db/schema.sql` (migration `20260417040157_add_game_schema.sql`). The DRAFT banner now reflects the usual "spec is stable but engine code is still catching up" caveat, not unresolved model issues.
+None. All prior open questions are resolved and the entities defined here are present in `db/schema.sql` (migrations `20260417040157_add_game_schema.sql` and `20260422003832_add_race_table.sql`). The DRAFT banner now reflects the usual "spec is stable but engine code is still catching up" caveat, not unresolved model issues.

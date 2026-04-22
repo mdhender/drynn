@@ -7,22 +7,29 @@
 > is intended for gameplay systems.
 
 This document specifies the rules for computing the Life Support Needed
-(LSN) value for a planet relative to a species' home planet. It is
+(LSN) value for a planet relative to a race's home planet. It is
 intended as a design reference for future implementation.
+
+> **Terminology.** This document uses the drynn-native terms `Race` (the
+> species-intrinsic biology and home-planet baseline; see
+> `project/reference/empire-model.md`) and `Empire` (the actor that
+> accrues tech levels and operates colonies). Older-engine docs used a
+> single combined `Species` concept — biology fields map to Race, tech
+> levels map to Empire.
 
 Constants, enumerations, and type definitions are in
 [galaxy-generation.md](galaxy-generation.md).
 
 ## Overview
 
-LSN measures how much life support technology a species needs to survive
+LSN measures how much life support technology a race needs to survive
 on a given planet. A value of 0 means the planet is naturally habitable
-for the species. Higher values mean more life support infrastructure is
+for the race. Higher values mean more life support infrastructure is
 required.
 
 There are two variants of the LSN calculation:
 
-1. **Full LSN** — Used during gameplay. Accounts for species-specific
+1. **Full LSN** — Used during gameplay. Accounts for race-specific
    required gas, gas percentage tolerances, and poison gases.
 2. **Approximate LSN** — Used only during galaxy creation (home system
    viability check). Assumes oxygen is required and any gas not present
@@ -33,19 +40,25 @@ There are two variants of the LSN calculation:
 ### Full LSN
 
 ```
-species  Species   // the species whose tolerances are being checked
-home     Planet    // the species' home planet
+race     Race      // the race whose tolerances are being checked
 colony   Planet    // the planet being evaluated
 ```
+
+Home-side environmental fields (temperature class, pressure class,
+gas, gas percent) are read from the Race row, not from the current
+`Planet` row of the race's home planet. This is what keeps LSN stable
+when the home planet is terraformed.
 
 ### Approximate LSN
 
 ```
-home     Planet    // the home planet
+home     Planet    // the home planet (current Planet row; used only at galaxy creation)
 colony   Planet    // the planet being evaluated
 ```
 
-No species data is used in the approximate variant.
+No race data is used in the approximate variant. Approximate LSN is
+evaluated before any Race row exists, so it reads the current Planet
+row directly.
 
 ## Relevant Type Fields
 
@@ -58,15 +71,23 @@ gas                [4]int   // gas id for each atmospheric slot (0 = none)
 gas_percent        [4]int   // percentage for each atmospheric slot
 ```
 
-### Species
+### Race
 
 ```
-required_gas       int      // gas id the species must breathe
+temperature_class  int      // 1–30, snapshotted from home planet at seeding
+pressure_class     int      // 0–29, snapshotted from home planet at seeding
+gas                [4]int   // home planet gas ids, snapshotted at seeding
+gas_percent        [4]int   // home planet gas percentages, snapshotted at seeding
+required_gas       int      // gas id the race must breathe
 required_gas_min   int      // minimum acceptable percentage of required gas
 required_gas_max   int      // maximum acceptable percentage of required gas
-neutral_gas        [6]int   // gases that are harmless to the species
-poison_gas         [6]int   // gases that are toxic to the species
+neutral_gas        [6]int   // gases that are harmless to the race
+poison_gas         [6]int   // gases that are toxic to the race
 ```
+
+The four home-planet environmental fields are denormalized onto Race
+at seeding time and never mutated thereafter; see the Race entity in
+`project/reference/empire-model.md`.
 
 ## Full LSN Algorithm
 
@@ -79,18 +100,18 @@ needed.
 ### Step 1 — Temperature Difference
 
 ```
-tc_diff = abs(colony.temperature_class - home.temperature_class)
+tc_diff = abs(colony.temperature_class - race.temperature_class)
 ```
 
 ### Step 2 — Pressure Difference
 
 ```
-pc_diff = abs(colony.pressure_class - home.pressure_class)
+pc_diff = abs(colony.pressure_class - race.pressure_class)
 ```
 
 ### Step 3 — Check Atmosphere
 
-Scan the colony planet's atmosphere for the species' required gas and
+Scan the colony planet's atmosphere for the race's required gas and
 for poison gases.
 
 ```
@@ -101,12 +122,12 @@ for each gas slot j in colony.gas[0..3]:
     if colony.gas_percent[j] == 0:
         continue
 
-    if colony.gas[j] == species.required_gas:
-        if species.required_gas_min <= colony.gas_percent[j]
-           AND colony.gas_percent[j] <= species.required_gas_max:
+    if colony.gas[j] == race.required_gas:
+        if race.required_gas_min <= colony.gas_percent[j]
+           AND colony.gas_percent[j] <= race.required_gas_max:
             has_required_gas = true
     else:
-        for each poison gas p in species.poison_gas[0..5]:
+        for each poison gas p in race.poison_gas[0..5]:
             if colony.gas[j] == p:
                 poison_count++
                 break
@@ -117,7 +138,7 @@ Notes:
   required gas.
 - The required gas must be present **and** within the acceptable
   percentage range to count.
-- Neutral gases (gases in the species' `neutral_gas` list) are not
+- Neutral gases (gases in the race's `neutral_gas` list) are not
   explicitly checked. A gas that is neither required nor poisonous
   contributes nothing to LSN.
 
@@ -133,13 +154,13 @@ if NOT has_required_gas:
 ### Step 5 — Return
 
 Return `ls_needed`. A value of 0 means the colony is naturally
-habitable for this species.
+habitable for this race.
 
 ## Approximate LSN Algorithm
 
 This simplified variant is used **only** during galaxy creation for the
 home system viability check (see [planet-generation.md](planet-generation.md)).
-It does not use species data.
+It does not use race data.
 
 Each environmental difference contributes **2 points** (not 3).
 
@@ -192,13 +213,18 @@ Colonies on planets with LSN > 0 suffer a production penalty:
 if ls_needed == 0:
     production_penalty = 0
 else:
-    production_penalty = (100 * ls_needed) / species.tech_level[LS]
+    production_penalty = (100 * ls_needed) / empire.tech_level[LS]
 ```
 
 The penalty is applied as a percentage reduction to raw material
 production and manufacturing capacity. If the penalty reaches or
 exceeds 100% (i.e., `ls_needed >= tech_level[LS]`), the colony is
 destroyed.
+
+Tech levels are per-empire in drynn, so the empire that owns the
+colony is the one whose `tech_level[LS]` applies — not the race.
+Two empires of the same race may have different Life Support tech
+and therefore different production penalties on identical planets.
 
 ### Colony Growth
 
@@ -208,6 +234,6 @@ Population growth rate on a colony is:
 percent_increase = 10 * (100 - (100 * ls_needed) / ls_actual) / 100
 ```
 
-where `ls_actual` is the species' Life Support tech level. If this
-value is negative, the colony is wiped out.
+where `ls_actual` is the owning empire's Life Support tech level. If
+this value is negative, the colony is wiped out.
 

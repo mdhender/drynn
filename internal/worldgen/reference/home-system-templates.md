@@ -10,7 +10,7 @@ Companion documents:
 
 - [planet-generation.md](planet-generation.md) — planet generation details.
 - [home-system-generation.md](home-system-generation.md) — the full home
-  system creation lifecycle, including species initialization.
+  system creation lifecycle, including race and empire initialization.
 - [lsn-determination.md](lsn-determination.md) — LSN variants.
 
 This document supersedes the older engine-inherited descriptions
@@ -50,7 +50,7 @@ This gives every race a roughly equal start while still feeling unique.
 - **Scope:** deterministic, side-effect-free generation of a
   `HomeSystemTemplate`; deterministic application of a template to
   an existing slice of `*Planet`.
-- **Not in scope:** persistence format, database schema, race (species)
+- **Not in scope:** persistence format, database schema, race
   initialization, home-system selection (which star becomes a home
   system). The caller owns all of those.
 - **Not in scope:** changes to galaxy-wide planet generation. The
@@ -549,7 +549,7 @@ return &HomeSystemTemplate{
 
 ## Approximate LSN
 
-Used only during template generation. Assumes the candidate species
+Used only during template generation. Assumes the candidate race
 breathes oxygen and treats any gas not on the home planet as poison.
 Each class of difference costs 2 points (not 3, as the full LSN does).
 
