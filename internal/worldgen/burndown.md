@@ -14,9 +14,9 @@ into `internal/worldgen` and deleted the sub-package.
 into a single `worldgen.System`. The placement generator now returns placement
 structs internally; callers use `worldgen.System` everywhere.
 
-## 3. Galaxy is intentionally thin
+## 3. Cluster is intentionally thin
 
-`Galaxy` exists to bag `Radius` + `[]*System` for return from `Generate`. Once it
+`Cluster` exists to bag `Radius` + `[]*System` for return from `Generate`. Once it
 leaves the package the caller slices it up for database insertion. No changes needed.
 
 ## ✅ 4–5. Planet generation in `rollPlanet`

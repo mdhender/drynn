@@ -33,7 +33,7 @@ When the document says "repeat until condition," it means a loop that
 re-rolls every iteration until the condition is satisfied.
 
 Constants, enumerations, and type definitions are in
-[galaxy-generation.md](galaxy-generation.md) unless defined below.
+[cluster-generation.md](cluster-generation.md) unless defined below.
 
 ## Constants
 
@@ -504,7 +504,7 @@ star.visited_by.add(race_id)
 
 ## Boundary Notes
 
-- Home system generation assumes that galaxy creation and home system
+- Home system generation assumes that cluster creation and home system
   template creation have already been completed.
 - The `fix_gases` function (used elsewhere for atmosphere adjustment
   during gameplay) is **not** called during home system generation.

@@ -4,7 +4,7 @@ This document specifies the rules for generating planets within a star system
 in Far Horizons. It is intended as a reference for coding agents implementing
 planet generation in Go.
 
-For the overall galaxy creation process, see [galaxy-generation.md](galaxy-generation.md).
+For the overall cluster creation process, see [cluster-generation.md](cluster-generation.md).
 
 ## Conventions
 
@@ -24,7 +24,7 @@ When the document says "repeat until condition," it means a loop that
 re-rolls every iteration until the condition is satisfied.
 
 Constants, enumerations, and type definitions are in
-[galaxy-generation.md](galaxy-generation.md).
+[cluster-generation.md](cluster-generation.md).
 
 ## Inputs
 

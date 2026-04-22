@@ -18,7 +18,7 @@ intended as a design reference for future implementation.
 > levels map to Empire.
 
 Constants, enumerations, and type definitions are in
-[galaxy-generation.md](galaxy-generation.md).
+[cluster-generation.md](cluster-generation.md).
 
 ## Overview
 
@@ -31,7 +31,7 @@ There are two variants of the LSN calculation:
 
 1. **Full LSN** — Used during gameplay. Accounts for race-specific
    required gas, gas percentage tolerances, and poison gases.
-2. **Approximate LSN** — Used only during galaxy creation (home system
+2. **Approximate LSN** — Used only during cluster creation (home system
    viability check). Assumes oxygen is required and any gas not present
    on the home planet is poisonous. Uses a smaller multiplier.
 
@@ -52,7 +52,7 @@ when the home planet is terraformed.
 ### Approximate LSN
 
 ```
-home     Planet    // the home planet (current Planet row; used only at galaxy creation)
+home     Planet    // the home planet (current Planet row; used only at cluster creation)
 colony   Planet    // the planet being evaluated
 ```
 
@@ -158,7 +158,7 @@ habitable for this race.
 
 ## Approximate LSN Algorithm
 
-This simplified variant is used **only** during galaxy creation for the
+This simplified variant is used **only** during cluster creation for the
 home system viability check (see [planet-generation.md](planet-generation.md)).
 It does not use race data.
 

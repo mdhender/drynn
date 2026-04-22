@@ -56,9 +56,8 @@ drynn is standardizing its worldgen vocabulary. Conventions in force
 as of 2026-04-22:
 
 - **Cluster** is preferred over "galaxy" in new documentation. The Go
-  type `Galaxy` is scheduled for a rename to `Cluster`; this doc will
-  be retitled and updated once the rename lands. Both names refer to
-  the same artifact until then.
+  type `Cluster` (formerly `Galaxy`, renamed 2026-04-22) is the
+  top-level worldgen output.
 - **System** and **Star** are distinct. A System is a hex location
   that contains one or more Stars. Templates described here are
   **star-scoped**: they describe the planets orbiting one star, not
@@ -66,9 +65,9 @@ as of 2026-04-22:
 - **Planets belong to Stars**, not Systems. The ownership chain is
   `System → []*Star → []*Planet`.
 - **Home-star template** is the preferred prose form. The Go type
-  `HomeSystemTemplate` is scheduled for a rename to `HomeStarTemplate`;
-  new content in this doc uses the new name, older content still uses
-  the old name until the rename pass lands.
+  is `HomeStarTemplate`. A template describes the planets orbiting
+  one star (match-required: an N-planet template applies only to an
+  N-planet star).
 
 Rename and staged-refactor tracking lives in
 [`../staged-generator-plan.md`](../staged-generator-plan.md).
@@ -76,12 +75,12 @@ Rename and staged-refactor tracking lives in
 ## Scope and Non-Goals
 
 - **Scope:** deterministic, side-effect-free generation of a
-  `HomeSystemTemplate`; deterministic application of a template to
+  `HomeStarTemplate`; deterministic application of a template to
   an existing slice of `*Planet`.
 - **Not in scope:** persistence format, database schema, race
   initialization, home-system selection (which star becomes a home
   system). The caller owns all of those.
-- **Not in scope:** changes to galaxy-wide planet generation. The
+- **Not in scope:** changes to cluster-wide planet generation. The
   `rollPlanet` path in `generator.go` is unchanged by this document.
 
 ## Units and Conventions
@@ -197,10 +196,10 @@ for planets with an atmosphere; the map is empty for vacuum worlds
 `Density` is not stored. It is an intermediate used during generation
 to compute `Gravity`, and nothing in template application needs it.
 
-### HomeSystemTemplate
+### HomeStarTemplate
 
 ```go
-type HomeSystemTemplate struct {
+type HomeStarTemplate struct {
     NumPlanets     int                // 3..9
     Planets        []*TemplatePlanet  // length == NumPlanets, in orbit order (inner to outer)
     ViabilityScore int                // the accepted score (54, 55, or 56)
@@ -310,7 +309,7 @@ return slots
 
 ### Properties and Trade-offs
 
-- The driver uses `rollStar` unchanged. Stage 1 consumes galaxy-wide
+- The driver uses `rollStar` unchanged. Stage 1 consumes cluster-wide
   planet generation; it does not modify it. Planet-count distribution
   over the candidate stream therefore matches the natural distribution
   that later stages will produce in the cluster.
@@ -351,7 +350,7 @@ Consequences that propagate out of stage 1:
 
 ### Relationship to Function 1
 
-Function 1 (currently `GenerateHomeSystemTemplate`; forthcoming
+Function 1 (currently `GenerateHomeStarTemplate`; forthcoming
 `GenerateHomeStarTemplateAttempt`) is the single-attempt building
 block: one star, one call, one `(*Template, score)` result. The
 stage-1 driver is the loop that feeds it candidates and gates
@@ -362,12 +361,12 @@ are unchanged by the staged-driver design.
 ## Function 1 — Generate a Home System Template
 
 ```go
-func GenerateHomeSystemTemplate(rng *prng.PRNG, numPlanets int) *HomeSystemTemplate
+func GenerateHomeStarTemplate(rng *prng.PRNG, numPlanets int) *HomeStarTemplate
 ```
 
 `numPlanets` must be in `[3, 9]`.
 
-**Returns** a `*HomeSystemTemplate` if the generated system passes the
+**Returns** a `*HomeStarTemplate` if the generated system passes the
 viability check, or `nil` if it does not. No side effects, no global
 state. All randomness is drawn from `rng`.
 
@@ -664,7 +663,7 @@ repeat until md >= 30.0 AND md <= 1000.0:
         + rng.Roll(1, 20) + rng.Roll(1, 20))
 ```
 
-No fudge factor (unlike the standard formula used in galaxy creation,
+No fudge factor (unlike the standard formula used in cluster creation,
 which multiplies by 11/5).
 
 ### Assembly
@@ -700,7 +699,7 @@ truncates; values land in the same scale the viability constants
 ### Return
 
 ```go
-return &HomeSystemTemplate{
+return &HomeStarTemplate{
     NumPlanets:     numPlanets,
     Planets:        planets,
     ViabilityScore: score,
@@ -757,7 +756,7 @@ planets are small bonuses that the viability window tunes.
 ## Function 2 — Apply a Template to a System
 
 ```go
-func ApplyHomeSystemTemplate(rng *prng.PRNG, template *HomeSystemTemplate, planets []*Planet) error
+func ApplyHomeStarTemplate(rng *prng.PRNG, template *HomeStarTemplate, planets []*Planet) error
 ```
 
 Mutates `planets` in place. Returns an error if preconditions fail.
@@ -915,7 +914,7 @@ fresh `map[AtmosphericGas]int` for the target planet so subsequent
 applies of the same template are not affected.
 
 `Density` is not written by this function. Either leave it as the
-galaxy-creation value (cheap and harmless — it is not used in
+cluster-creation value (cheap and harmless — it is not used in
 gameplay) or recompute it from `Diameter` and `Gravity` if a caller
 wants consistency (`density = 72 * gravity / diameter`).
 
@@ -938,7 +937,7 @@ return nil
 
 2. **All home systems of the same planet count share one template.**
    Differentiation comes only from the randomization in
-   `ApplyHomeSystemTemplate`.
+   `ApplyHomeStarTemplate`.
 
 3. **The viability window is narrow** — scores 54, 55, and 56 only.
    Many random planet sets are rejected; the generator caller may
@@ -955,7 +954,7 @@ return nil
 
 6. **Determinism requires a single `*prng.PRNG` *and* a canonical
    starting order for any map-keyed work.** All rolls in both
-   `GenerateHomeSystemTemplate` and `ApplyHomeSystemTemplate` must come
+   `GenerateHomeStarTemplate` and `ApplyHomeStarTemplate` must come
    from the supplied rng, including `rng.Shuffle` used on atmosphere
    slices. Before any such shuffle, the slice of gas keys must be
    **sorted** — Go's map iteration is randomized, so shuffling an
@@ -966,23 +965,23 @@ return nil
 
 | Function                     | Input                                              | Output                  | Side effects         |
 |------------------------------|----------------------------------------------------|-------------------------|----------------------|
-| `GenerateHomeSystemTemplate` | `*prng.PRNG`, `numPlanets int`                     | `*HomeSystemTemplate`   | None (nil on failure)|
-| `ApplyHomeSystemTemplate`    | `*prng.PRNG`, `*HomeSystemTemplate`, `[]*Planet`   | `error`                 | Mutates `planets`    |
+| `GenerateHomeStarTemplate` | `*prng.PRNG`, `numPlanets int`                     | `*HomeStarTemplate`   | None (nil on failure)|
+| `ApplyHomeStarTemplate`    | `*prng.PRNG`, `*HomeStarTemplate`, `[]*Planet`   | `error`                 | Mutates `planets`    |
 | `approximateLSN`             | `candidate`, `home` (both `*TemplatePlanet`)       | `int`                   | None                 |
 
 ## Relationship to Other Subsystems
 
 ```
-Galaxy Creation (rollStar → rollPlanet)
+Cluster Creation (rollStar → rollPlanet)
   └─ creates star systems with random planets (earth-like OFF)
 
 Template Creation (this document)
-  └─ produces 7 HomeSystemTemplates (one per planet count 3..9)
+  └─ produces 7 HomeStarTemplates (one per planet count 3..9)
      Caller persists however it likes.
 
 Race Creation (future)
   ├─ selects a star system for the new race
-  ├─ calls ApplyHomeSystemTemplate on the system's []*Planet
+  ├─ calls ApplyHomeStarTemplate on the system's []*Planet
   ├─ sets System.HomeSystem = true
   └─ initializes race gas tolerances, tech levels, home colony
      (see home-system-generation.md for the surrounding lifecycle)
@@ -991,14 +990,14 @@ Race Creation (future)
 ## Addendum A — The Viability Window as a Difficulty Knob
 
 The viability window — the range of scores
-`GenerateHomeSystemTemplate` will accept — controls **how useful the
+`GenerateHomeStarTemplate` will accept — controls **how useful the
 non-home planets are for early expansion**. It is a game-wide setting:
 all races created under the same window get systems drawn from the
 same difficulty tier.
 
 ### Why the Score Is Returned
 
-`HomeSystemTemplate.ViabilityScore` carries the accepted score (54,
+`HomeStarTemplate.ViabilityScore` carries the accepted score (54,
 55, or 56). Persist it alongside the template so later analytics can
 correlate player experience with template difficulty.
 
@@ -1046,7 +1045,7 @@ Expose the accepted minimum and maximum as game configuration
 parameters, inclusive on both ends — e.g. `viability_min = 54`,
 `viability_max = 56` reproduces the original accepted set
 {54, 55, 56}. The `score > 53 AND score < 57` check in
-`GenerateHomeSystemTemplate` becomes
+`GenerateHomeStarTemplate` becomes
 `score >= viability_min AND score <= viability_max`. Keep
 `ViabilityScore` stored alongside each template so it can be
 correlated with player satisfaction later.
@@ -1068,7 +1067,7 @@ as the rest. The touch points are all in `internal/worldgen`:
 - `rollPlanet` in `generator.go` — divide the emitted value by 100
   (and drop the `* 11 / 5` fudge factor or re-express it against the
   unscaled range).
-- `GenerateHomeSystemTemplate` — earth-like override range
+- `GenerateHomeStarTemplate` — earth-like override range
   `210..230` → `2.10..2.30`; easier-mining range `[30, 1000]` →
   `[0.30, 10.00]`.
 - Viability formula — retune constants so the score still lands in
@@ -1076,7 +1075,7 @@ as the rest. The touch points are all in `internal/worldgen`:
   is `score += 200 / ((3 + lsn) * (0.5 + md))`, but the exact choice
   should be validated by regenerating templates and comparing score
   distributions against the current output.
-- `ApplyHomeSystemTemplate` — thresholds (`> 100.0` → `> 1.0`) and
+- `ApplyHomeStarTemplate` — thresholds (`> 100.0` → `> 1.0`) and
   nudge magnitudes (`Roll(1, 10)` → `Roll(1, 10) / 100.0`) rescale
   the same way as `Gravity` did in this document.
 - Any persisted templates from before the rescale must be

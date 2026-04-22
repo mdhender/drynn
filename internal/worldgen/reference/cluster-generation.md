@@ -1,8 +1,8 @@
-# Galaxy Generation Rules
+# Cluster Generation Rules
 
-This document specifies the rules for creating a galaxy using hex-based
+This document specifies the rules for creating a cluster using hex-based
 2D axial coordinates. It is intended as a reference for coding agents
-implementing galaxy creation in Go.
+implementing cluster creation in Go.
 
 Planet generation is detailed in [planet-generation.md](planet-generation.md).
 
@@ -20,7 +20,7 @@ re-rolls every iteration until the condition is satisfied.
 
 ## Spatial Model
 
-The galaxy uses a **2D hex grid** with **axial coordinates** (`Q`, `R`).
+The cluster uses a **2D hex grid** with **axial coordinates** (`Q`, `R`).
 Stars are placed on hexes within a hex disk of a given radius centered
 at the origin `(0, 0)`.
 
@@ -96,12 +96,12 @@ At most one field is true at a time.
 
 ## Type Definitions
 
-### Galaxy
+### Cluster
 
 ```
-Galaxy {
+Cluster {
     Radius   int        // hex disk radius
-    Systems  []*System  // all star systems in the galaxy
+    Systems  []*System  // all star systems in the cluster
 }
 ```
 
@@ -154,7 +154,7 @@ Planet {
 
 ## Inputs
 
-Galaxy creation is configured via functional options with the following
+Cluster creation is configured via functional options with the following
 defaults:
 
 | Option                  | Default | Description                                        |
@@ -175,7 +175,7 @@ WithMerge(merge bool)
 WithPRNG(r *prng.PRNG)
 ```
 
-## Galaxy Creation Algorithm
+## Cluster Creation Algorithm
 
 ### Step 1 — Hex Placement
 
@@ -317,7 +317,7 @@ For each orbit `1..num_planets`, call the planet generation procedure
 
 ### Step 3 — Output
 
-The result of galaxy creation is a single `Galaxy` record containing:
+The result of cluster creation is a single `Cluster` record containing:
 
 1. **Radius** — the hex disk radius.
 2. **Systems** — an array of `System` records, each containing one or
@@ -326,7 +326,7 @@ The result of galaxy creation is a single `Galaxy` record containing:
 ## Entry Point
 
 ```go
-galaxy, err := worldgen.Generate(
+cluster, err := worldgen.Generate(
     worldgen.WithDesiredNumberOfSystems(100),
     worldgen.WithDesiredRadius(15),
     worldgen.WithMinimumDistance(2),
@@ -337,6 +337,6 @@ galaxy, err := worldgen.Generate(
 
 ## Boundary Note
 
-Galaxy creation does **not** assign home systems to races. Home system
+Cluster creation does **not** assign home systems to races. Home system
 assignment occurs in a separate step that is outside the scope of this
 document.

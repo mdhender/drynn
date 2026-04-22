@@ -14,7 +14,7 @@ execution punch-list, not the spec.
 Companion documents:
 
 - [`reference/home-system-templates.md`](reference/home-system-templates.md) — home-star template spec (stage 1).
-- [`reference/galaxy-generation.md`](reference/galaxy-generation.md) — cluster placement spec (stage 2). Will be renamed to `cluster-generation.md` as part of the `Galaxy`→`Cluster` rename.
+- [`reference/cluster-generation.md`](reference/cluster-generation.md) — cluster placement spec (stage 2).
 - [`burndown.md`](burndown.md) — orthogonal known-defect log. Random-increment clamps (items 8, 9) stay by design and are **not** blocked by this plan.
 
 ## Status legend
@@ -27,22 +27,22 @@ Companion documents:
 
 ## 1. Vocabulary renames
 
-Mechanical find-replace passes. Do these before the stage-1 implementation so
+Mechanical find-replace passes. Done before the stage-1 implementation so
 the staged code lands under the final names.
 
-- [ ] `Galaxy` type → `Cluster`. File `galaxy.go` → `cluster.go`. Callers: `internal/worldgen/**`, `cmd/**`, viewers, JSON state, tests, design/reference docs.
-- [ ] `HomeSystemTemplate` → `HomeStarTemplate`. Includes field-name companions (`templateDoc.source_star_id`, `HomeSystemTemplateUnavailableHTML`, etc.).
-- [ ] Drop `HomeStarTemplate.SourceStarID` and the JSON field `source_star_id`. Ephemeral stage-1 candidates have no persistent source star.
-- [ ] `SimulationOutcome.Galaxy` → `.Cluster`. Regenerate golden files if any.
-- [ ] Sweep docs for "galaxy" references in prose; prefer "cluster." Exception: historical/code-citation references.
+- [x] `Galaxy` type → `Cluster`. File `galaxy.go` → `cluster.go`. Callers in `internal/worldgen/**` (non-cartesian) and `cmd/drynn/**` updated; `internal/worldgen/cartesian` retains its separate `Galaxy` type (out of scope).
+- [x] `HomeSystemTemplate` → `HomeStarTemplate`, including `GenerateHomeSystemTemplate*` and `HomeSystemTemplateUnavailableHTML`.
+- [x] Drop `HomeStarTemplate.SourceStarID` and the JSON field `source_star_id`. Ephemeral stage-1 candidates have no persistent source star.
+- [x] `SimulationOutcome.Galaxy` → `.Cluster`. No golden files to regenerate.
+- [x] Sweep worldgen docs for "galaxy" references in prose; `reference/galaxy-generation.md` renamed to `reference/cluster-generation.md`. Inherited DRAFT docs under `design/` retain their "galaxy" prose as historical content. Project-level docs under `project/` are out of scope for this pass.
 
 ## 2. Stage-1 design documentation
 
-- [~] Update `reference/home-system-templates.md`:
-  - Add a **Vocabulary** note near the top.
-  - Add a **Stage-1 Driver** section describing the shared candidate stream, 10k cap, per-slot metadata, NULL slot semantics, viability window as a GM knob, match-required rule, and own PRNG substream.
-  - Flag the `HomeSystemTemplate`→`HomeStarTemplate` rename as pending.
-- [ ] Update `design/home-system-template-design.md` DRAFT banner to point at this plan; note that per-planet generation (steps 1a–1k) remains authoritative and is not changed by the stage-1 work.
+- [x] Update `reference/home-system-templates.md`:
+  - Added **Vocabulary** note near the top.
+  - Added **Stage-1 Driver** section describing the shared candidate stream, 10k cap, per-slot metadata, NULL slot semantics, viability window as a GM knob, match-required rule, and own PRNG substream.
+  - Reference doc now uses `HomeStarTemplate` throughout (rename landed).
+- [x] Update `design/home-system-template-design.md` DRAFT banner to point at this plan; note that per-planet generation (steps 1a–1k) remains authoritative and is not changed by the stage-1 work.
 - [ ] Update `reference/home-system-generation.md` Phase 1 to match the new driver (candidate stream, not a per-count "repeat until viable" loop).
 
 ## 3. Generator / Cluster shape refactor
@@ -57,7 +57,7 @@ the staged code lands under the final names.
 
 ## 4. Stage-1 implementation (single shared-candidate loop)
 
-- [ ] Replace `GenerateHomeSystemTemplateUntilViable` with a driver that:
+- [ ] Replace `GenerateHomeStarTemplateUntilViable` with a driver that:
   - Uses its own PRNG substream.
   - Rolls a candidate star via existing `rollStar` (unchanged).
   - If the candidate's planet count N ∈ [3, 9] and slot N is empty, runs `generateHomeStarTemplateAttempt` on it. On viable score, fills slot N.

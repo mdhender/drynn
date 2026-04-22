@@ -2,13 +2,13 @@
 
 ## Overview
 
-Pure in-memory world generation. Produces a `*Galaxy` (systems on an axial hex map, stars, planets with atmospheres and mining difficulty) and home-system `*HomeSystemTemplate` values. No database, no I/O beyond optional HTML/JSON rendering.
+Pure in-memory world generation. Produces a `*Cluster` (systems on an axial hex map, stars, planets with atmospheres and mining difficulty) and home-system `*HomeStarTemplate` values. No database, no I/O beyond optional HTML/JSON rendering.
 
 The package is "generator-first": it runs before any adapter exists. Adapters and persistence live outside this package and are the responsibility of their callers.
 
 ## Types are for the generator's convenience
 
-All types in this package — `Galaxy`, `System`, `Star`, `Planet`, `HomeSystemTemplate`, `TemplatePlanet`, `TemplateGas`, etc. — exist to make the generator itself readable and testable. They are **not** a public schema and they do not mirror any database table.
+All types in this package — `Cluster`, `System`, `Star`, `Planet`, `HomeStarTemplate`, `TemplatePlanet`, `TemplateGas`, etc. — exist to make the generator itself readable and testable. They are **not** a public schema and they do not mirror any database table.
 
 Agents are **empowered** to update type definitions when doing so makes the code cleaner, more idiomatic, or easier to test:
 
@@ -27,7 +27,7 @@ What *not* to do:
 
 ## Authoritative specs
 
-- `design/home-system-template-design.md` — working spec for template generation (`GenerateHomeSystemTemplate`, `TemplatePlanet`, ALSN, viability window). Treat as authoritative.
+- `design/home-system-template-design.md` — working spec for template generation (`GenerateHomeStarTemplate`, `TemplatePlanet`, ALSN, viability window). Treat as authoritative.
 - `design/mining-difficulty.md` — working spec for mining difficulty formulas.
 - `reference/*.md` — inherited from a prior engine, kept for historical context. **Treat `design/` as authoritative where they disagree.** In particular, the inherited reference doc describes flat `homesystem{n}.dat` files; templates will live in the database.
 
@@ -35,7 +35,7 @@ Do not implement Phase 2 (system selection), Phase 3 (template application), or 
 
 ## Accepted defects — do not propose fixes
 
-- Random-walk clamping loops in `generator.go` (`rollStar`, `rollPlanet`) and `templates.go` (`generateHomeSystemTemplateAttempt`) burn an unpredictable number of PRNG draws before settling. This was reviewed and accepted; attempt counts stay within ~5k in practice and this code is infrequent.
+- Random-walk clamping loops in `generator.go` (`rollStar`, `rollPlanet`) and `templates.go` (`generateHomeStarTemplateAttempt`) burn an unpredictable number of PRNG draws before settling. This was reviewed and accepted; attempt counts stay within ~5k in practice and this code is infrequent.
 - The gas-selection retry loop (`rollNonEarthAtmosphere`, `rollPlanet`) can spin when every candidate in the window is randomly skipped. Also accepted.
 
 If you see warnings in `burndown.md` about these, they describe the known state, not a backlog item.
@@ -43,11 +43,11 @@ If you see warnings in `burndown.md` about these, they describe the known state,
 ## Determinism
 
 - Seed the generator with `prng.NewFromSeed(s1, s2)` and pass via `WithPRNG`. Do not read `math/rand` or `crypto/rand` inside this package.
-- `Generate` assigns sequential `System.ID` and `Star.ID` values so that callers have a stable sort key — use these whenever you need to iterate over stars deterministically (see `GenerateHomeSystemTemplateUntilViable`).
+- `Generate` assigns sequential `System.ID` and `Star.ID` values so that callers have a stable sort key — use these whenever you need to iterate over stars deterministically (see `GenerateHomeStarTemplateUntilViable`).
 - Any map-backed field (e.g. `Planet.Gases`) must be sorted before emitting to stable output. The JSON DTO layer already does this; replicate the pattern if you add another renderer.
 
 ## Testing notes
 
 - Pure functions only — no DB, no network, no fixtures. Unit tests can run without Docker or Postgres.
-- The private `generateHomeSystemTemplateAttempt(rng, *Star) (*HomeSystemTemplate, int)` always returns a template plus its score (never nil), which is the seam for template-generation tests: feed a deterministic PRNG and a star with a known planet count, assert on the returned struct.
+- The private `generateHomeStarTemplateAttempt(rng, *Star) (*HomeStarTemplate, int)` always returns a template plus its score (never nil), which is the seam for template-generation tests: feed a deterministic PRNG and a star with a known planet count, assert on the returned struct.
 - `MarshalSimulationJSON` produces byte-stable output given identical input, which makes it the natural target for golden file tests.
