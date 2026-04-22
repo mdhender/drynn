@@ -51,10 +51,10 @@ func (t *HomeStarTemplate) ToHTML() []byte {
 }
 
 // HomeStarTemplateUnavailableHTML renders a report explaining that no
-// viable template could be produced for the requested planet count. This
-// keeps the simulation's output complete even when the cluster does not
-// happen to yield a candidate.
-func HomeStarTemplateUnavailableHTML(numPlanets, candidateCount int) []byte {
+// viable template was produced for the requested planet count. This
+// keeps the simulation's output complete even when the stage-1 driver
+// exhausts its candidate budget without filling the slot.
+func HomeStarTemplateUnavailableHTML(numPlanets, attempts, bestScore int) []byte {
 	var buf bytes.Buffer
 	buf.WriteString("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n")
 	fmt.Fprintf(&buf, "<meta charset=\"UTF-8\">\n<title>Home System Template (%d planets) — unavailable</title>\n", numPlanets)
@@ -64,8 +64,8 @@ func HomeStarTemplateUnavailableHTML(numPlanets, candidateCount int) []byte {
 	fmt.Fprintln(&buf, `<section class="report">`)
 	fmt.Fprintf(&buf, "<h1>Home System Template — %d planets</h1>\n", numPlanets)
 	fmt.Fprintln(&buf, `<p class="empty">No viable template found.</p>`)
-	fmt.Fprintf(&buf, "<p>Attempted %d candidate star(s) with exactly %d planet(s); none produced a template in the (53, 57) viability window.</p>\n",
-		candidateCount, numPlanets)
+	fmt.Fprintf(&buf, "<p>Ran %d template-generation attempt(s); best viability score seen was %d. The stage-1 candidate budget was exhausted before a score landed inside the acceptance window.</p>\n",
+		attempts, bestScore)
 	fmt.Fprintln(&buf, `</section>`)
 
 	buf.WriteString("</body>\n</html>\n")

@@ -16,6 +16,8 @@ func Generate(options ...Option) (*Cluster, error) {
 		minimumDistance:   2,
 		merge:             true,
 		r:                 prng.NewFromSeed(10, 10),
+		viabilityWindow:   DefaultViabilityWindow,
+		maxCandidateRolls: DefaultMaxCandidateRolls,
 	}
 	for _, opt := range options {
 		if err := opt(g); err != nil {
@@ -48,6 +50,8 @@ func Generate(options ...Option) (*Cluster, error) {
 		}
 		cluster.Systems = append(cluster.Systems, sys)
 	}
+
+	cluster.HomeStarTemplates = g.generateHomeStarTemplates(g.viabilityWindow, g.maxCandidateRolls)
 	return cluster, nil
 }
 
@@ -389,10 +393,33 @@ func WithPRNG(r *prng.PRNG) Option {
 	}
 }
 
+// WithViabilityWindow sets the acceptance band for stage-1 home-star
+// templates. Scores strictly within (Min, Max) are accepted. Defaults
+// to DefaultViabilityWindow.
+func WithViabilityWindow(w ViabilityWindow) Option {
+	return func(g *Generator) error {
+		g.viabilityWindow = w
+		return nil
+	}
+}
+
+// WithMaxCandidateRolls sets the stage-1 candidate-roll budget.
+// Defaults to DefaultMaxCandidateRolls (10_000). Values <= 0 fall back
+// to the default.
+func WithMaxCandidateRolls(n int) Option {
+	return func(g *Generator) error {
+		g.maxCandidateRolls = n
+		return nil
+	}
+}
+
 type Generator struct {
 	desiredNumSystems int
 	desiredRadius     int
 	minimumDistance   int
 	merge             bool
 	r                 *prng.PRNG
+
+	viabilityWindow   ViabilityWindow
+	maxCandidateRolls int
 }

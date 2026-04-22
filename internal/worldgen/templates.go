@@ -2,11 +2,7 @@
 
 package worldgen
 
-import (
-	"sort"
-
-	"github.com/mdhender/drynn/internal/prng"
-)
+import "github.com/mdhender/drynn/internal/prng"
 
 // TemplatePlanet captures the physical properties of one planet in a
 // home-system template. Units follow design/home-system-template-design.md:
@@ -39,43 +35,90 @@ type HomeStarTemplate struct {
 	ViabilityScore int
 }
 
-// GenerateHomeStarTemplate picks a star from cluster that has numPlanets
-// planets, then returns the first viable home-system template produced by
-// GenerateHomeStarTemplateUntilViable. Returns nil if no matching star
-// yields a viable template.
-func GenerateHomeStarTemplate(r *prng.PRNG, cluster *Cluster, numPlanets int) *HomeStarTemplate {
-	return GenerateHomeStarTemplateUntilViable(r, cluster, numPlanets)
+// ViabilityWindow is the acceptance band for a template's viability
+// score. Scores strictly greater than Min and strictly less than Max
+// are accepted. The bounds are exclusive on both ends.
+type ViabilityWindow struct {
+	Min, Max int
 }
 
-// GenerateHomeStarTemplateUntilViable collects every star in cluster with
-// exactly numPlanets planets, sorts them by Star.ID for determinism, and
-// runs one template-generation attempt per star using the shared PRNG.
-// It returns the first template whose viability score falls in the
-// exclusive window (53, 57), or nil if the star slice is exhausted first.
+// Accepts reports whether score falls strictly between Min and Max.
+func (w ViabilityWindow) Accepts(score int) bool {
+	return score > w.Min && score < w.Max
+}
+
+// DefaultViabilityWindow matches the historical (53, 57) exclusive band:
+// only scores of 54, 55, or 56 are accepted.
+var DefaultViabilityWindow = ViabilityWindow{Min: 53, Max: 57}
+
+// DefaultMaxCandidateRolls is the stage-1 runtime budget, counted in
+// candidate-star rolls. Every candidate the driver rolls counts —
+// including those discarded because the matching slot is already
+// filled or the planet count is outside [3, 9].
+const DefaultMaxCandidateRolls = 10_000
+
+// HomeStarTemplateOutcome is the stage-1 result for one planet count.
+// Template is nil when the candidate budget was exhausted before any
+// viable template was accepted for this count. Attempts counts only
+// calls into generateHomeStarTemplateAttempt (matching planet count);
+// candidates skipped because the slot was already filled do not count.
+// BestScore records the highest viability score seen during those
+// attempts — useful when Template is nil to show the GM how close the
+// driver came to producing a viable template.
+type HomeStarTemplateOutcome struct {
+	NumPlanets int
+	Template   *HomeStarTemplate
+	Attempts   int
+	BestScore  int
+}
+
+// GenerateHomeStarTemplates runs the stage-1 driver described in
+// reference/home-system-templates.md. It rolls ephemeral candidate
+// stars via rollStar, attempts template generation whenever the
+// candidate's planet count matches an empty slot in [3, 9], and
+// terminates when all seven slots are filled or the candidate-roll
+// count reaches maxCandidateRolls.
 //
-// The star slice also bounds the attempt count — there is no separate cap.
-func GenerateHomeStarTemplateUntilViable(r *prng.PRNG, cluster *Cluster, numPlanets int) *HomeStarTemplate {
-	candidates := collectStarsWithPlanetCount(cluster, numPlanets)
-	for _, star := range candidates {
-		template, score := generateHomeStarTemplateAttempt(r, star)
-		if score > 53 && score < 57 {
-			return template
-		}
-	}
-	return nil
+// If maxCandidateRolls is <= 0, DefaultMaxCandidateRolls is used.
+// The returned slice always has length 10 with indexes 0..2 nil and
+// 3..9 non-nil.
+func GenerateHomeStarTemplates(rng *prng.PRNG, window ViabilityWindow, maxCandidateRolls int) []*HomeStarTemplateOutcome {
+	g := &Generator{r: rng}
+	return g.generateHomeStarTemplates(window, maxCandidateRolls)
 }
 
-func collectStarsWithPlanetCount(cluster *Cluster, numPlanets int) []*Star {
-	var stars []*Star
-	for _, sys := range cluster.Systems {
-		for _, star := range sys.Stars {
-			if len(star.Planets) == numPlanets {
-				stars = append(stars, star)
-			}
+func (g *Generator) generateHomeStarTemplates(window ViabilityWindow, maxCandidateRolls int) []*HomeStarTemplateOutcome {
+	if maxCandidateRolls <= 0 {
+		maxCandidateRolls = DefaultMaxCandidateRolls
+	}
+
+	outcomes := make([]*HomeStarTemplateOutcome, 10)
+	for n := 3; n <= 9; n++ {
+		outcomes[n] = &HomeStarTemplateOutcome{NumPlanets: n}
+	}
+
+	filled := 0
+	for rolls := 0; rolls < maxCandidateRolls && filled < 7; rolls++ {
+		candidate := g.rollStar()
+		n := len(candidate.Planets)
+		if n < 3 || n > 9 {
+			continue
+		}
+		slot := outcomes[n]
+		if slot.Template != nil {
+			continue
+		}
+		template, score := generateHomeStarTemplateAttempt(g.r, candidate)
+		slot.Attempts++
+		if score > slot.BestScore {
+			slot.BestScore = score
+		}
+		if window.Accepts(score) {
+			slot.Template = template
+			filled++
 		}
 	}
-	sort.Slice(stars, func(i, j int) bool { return stars[i].ID < stars[j].ID })
-	return stars
+	return outcomes
 }
 
 // startDiameter and startTempClass seed planet generation. Index 0 is

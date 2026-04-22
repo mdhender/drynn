@@ -8,24 +8,13 @@ import (
 )
 
 // SimulationOutcome bundles everything a simulation run produces: the
-// seeds that drove the PRNG, the generated cluster, and one entry per
-// requested home-system template size. It is the canonical state that
+// seeds that drove the PRNG and the generated cluster (which carries
+// its own home-star-template library). It is the canonical state that
 // the CLI's --json flag serializes.
 type SimulationOutcome struct {
-	Seed1     uint64
-	Seed2     uint64
-	Cluster   *Cluster
-	Templates []TemplateOutcome
-}
-
-// TemplateOutcome is the result of one template-generation request.
-// Template is nil when no candidate star with the given planet count
-// produced a viable template; CandidateCount is the number of stars
-// that were tried.
-type TemplateOutcome struct {
-	NumPlanets     int
-	CandidateCount int
-	Template       *HomeStarTemplate
+	Seed1   uint64
+	Seed2   uint64
+	Cluster *Cluster
 }
 
 // MarshalSimulationJSON returns a pretty-printed, deterministic JSON
@@ -39,15 +28,15 @@ func MarshalSimulationJSON(s SimulationOutcome) ([]byte, error) {
 }
 
 type stateDoc struct {
-	Seed1     uint64        `json:"seed1"`
-	Seed2     uint64        `json:"seed2"`
-	Cluster   clusterDoc    `json:"cluster"`
-	Templates []templateDoc `json:"templates"`
+	Seed1   uint64     `json:"seed1"`
+	Seed2   uint64     `json:"seed2"`
+	Cluster clusterDoc `json:"cluster"`
 }
 
 type clusterDoc struct {
-	Radius  int         `json:"radius"`
-	Systems []systemDoc `json:"systems"`
+	Radius            int                   `json:"radius"`
+	Systems           []systemDoc           `json:"systems"`
+	HomeStarTemplates []homeStarTemplateDoc `json:"home_star_templates,omitempty"`
 }
 
 type systemDoc struct {
@@ -81,9 +70,10 @@ type gasDoc struct {
 	Percent int    `json:"percent"`
 }
 
-type templateDoc struct {
+type homeStarTemplateDoc struct {
 	NumPlanets     int                 `json:"num_planets"`
-	CandidateCount int                 `json:"candidate_count"`
+	Attempts       int                 `json:"attempts"`
+	BestScore      int                 `json:"best_score"`
 	Viable         bool                `json:"viable"`
 	ViabilityScore int                 `json:"viability_score,omitempty"`
 	Planets        []templatePlanetDoc `json:"planets,omitempty"`
@@ -101,15 +91,11 @@ type templatePlanetDoc struct {
 
 func buildStateDoc(s SimulationOutcome) stateDoc {
 	doc := stateDoc{
-		Seed1:     s.Seed1,
-		Seed2:     s.Seed2,
-		Templates: make([]templateDoc, 0, len(s.Templates)),
+		Seed1: s.Seed1,
+		Seed2: s.Seed2,
 	}
 	if s.Cluster != nil {
 		doc.Cluster = buildClusterDoc(s.Cluster)
-	}
-	for _, outcome := range s.Templates {
-		doc.Templates = append(doc.Templates, buildTemplateDoc(outcome))
 	}
 	return doc
 }
@@ -118,6 +104,16 @@ func buildClusterDoc(g *Cluster) clusterDoc {
 	out := clusterDoc{
 		Radius:  g.Radius,
 		Systems: make([]systemDoc, 0, len(g.Systems)),
+	}
+	for n := 3; n <= 9; n++ {
+		if n >= len(g.HomeStarTemplates) {
+			break
+		}
+		outcome := g.HomeStarTemplates[n]
+		if outcome == nil {
+			continue
+		}
+		out.HomeStarTemplates = append(out.HomeStarTemplates, buildHomeStarTemplateDoc(outcome))
 	}
 	for _, sys := range g.Systems {
 		sd := systemDoc{
@@ -153,10 +149,11 @@ func buildClusterDoc(g *Cluster) clusterDoc {
 	return out
 }
 
-func buildTemplateDoc(o TemplateOutcome) templateDoc {
-	td := templateDoc{
-		NumPlanets:     o.NumPlanets,
-		CandidateCount: o.CandidateCount,
+func buildHomeStarTemplateDoc(o *HomeStarTemplateOutcome) homeStarTemplateDoc {
+	td := homeStarTemplateDoc{
+		NumPlanets: o.NumPlanets,
+		Attempts:   o.Attempts,
+		BestScore:  o.BestScore,
 	}
 	if o.Template == nil {
 		return td

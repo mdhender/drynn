@@ -21,12 +21,11 @@ type simulateOpts struct {
 	jsonPath    string
 }
 
-// runSimulate simulates the GM's interactive workflow: generate a cluster,
-// write cluster.html, then produce a home-system template for each planet
-// count 3..9 and write home-system-{N}.html. When --json is set, the full
-// run state is also written to a deterministic JSON file suitable for
-// golden file tests. The same PRNG stream is threaded through cluster and
-// template generation so the full run is reproducible from the seeds.
+// runSimulate simulates the GM's interactive workflow: generate a cluster
+// (hex placement + stars + planets) and run the stage-1 home-star-template
+// driver, writing HTML reports for the cluster and for each of the seven
+// template slots. When --json is set, the full run state is also written
+// to a deterministic JSON file suitable for golden file tests.
 func runSimulate(opts simulateOpts) error {
 	seed1, seed2 := opts.seed1, opts.seed2
 	if opts.randomSeeds {
@@ -67,25 +66,18 @@ func runSimulate(opts simulateOpts) error {
 	}
 	fmt.Printf("wrote %s\n", clusterPath)
 
-	outcomes := make([]worldgen.TemplateOutcome, 0, 7)
 	for n := 3; n <= 9; n++ {
-		candidates := starsWithPlanetCount(cluster, n)
-		template := worldgen.GenerateHomeStarTemplate(rng, cluster, n)
-		outcomes = append(outcomes, worldgen.TemplateOutcome{
-			NumPlanets:     n,
-			CandidateCount: len(candidates),
-			Template:       template,
-		})
-
+		outcome := cluster.HomeStarTemplates[n]
 		path := filepath.Join(opts.outDir, fmt.Sprintf("home-system-%d.html", n))
 		var html []byte
-		if template == nil {
-			html = worldgen.HomeStarTemplateUnavailableHTML(n, len(candidates))
-			fmt.Printf("n=%d: no viable template (tried %d candidate stars)\n", n, len(candidates))
+		if outcome.Template == nil {
+			html = worldgen.HomeStarTemplateUnavailableHTML(n, outcome.Attempts, outcome.BestScore)
+			fmt.Printf("n=%d: no viable template (%d attempts, best score %d)\n",
+				n, outcome.Attempts, outcome.BestScore)
 		} else {
-			html = template.ToHTML()
-			fmt.Printf("n=%d: viable template (score %d, tried from %d candidates)\n",
-				n, template.ViabilityScore, len(candidates))
+			html = outcome.Template.ToHTML()
+			fmt.Printf("n=%d: viable template (score %d, %d attempts)\n",
+				n, outcome.Template.ViabilityScore, outcome.Attempts)
 		}
 		if err := os.WriteFile(path, html, 0o644); err != nil {
 			return fmt.Errorf("write %s: %w", path, err)
@@ -95,10 +87,9 @@ func runSimulate(opts simulateOpts) error {
 
 	if opts.jsonPath != "" {
 		body, err := worldgen.MarshalSimulationJSON(worldgen.SimulationOutcome{
-			Seed1:     seed1,
-			Seed2:     seed2,
-			Cluster:   cluster,
-			Templates: outcomes,
+			Seed1:   seed1,
+			Seed2:   seed2,
+			Cluster: cluster,
 		})
 		if err != nil {
 			return fmt.Errorf("marshal state json: %w", err)
@@ -110,18 +101,6 @@ func runSimulate(opts simulateOpts) error {
 	}
 
 	return nil
-}
-
-func starsWithPlanetCount(g *worldgen.Cluster, n int) []*worldgen.Star {
-	var out []*worldgen.Star
-	for _, sys := range g.Systems {
-		for _, star := range sys.Stars {
-			if len(star.Planets) == n {
-				out = append(out, star)
-			}
-		}
-	}
-	return out
 }
 
 func totalPlanets(g *worldgen.Cluster) int {
