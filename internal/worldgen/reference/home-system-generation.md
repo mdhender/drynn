@@ -128,26 +128,50 @@ Home system generation is a multi-phase process:
 
 ## Phase 1 — Template Creation
 
-For each planet count `n` from 3 to 9 inclusive, generate a home system
-template file.
+Template creation is worldgen's **stage 1**. A single driver fills up
+to seven home-star-template slots (one per planet count in `[3, 9]`)
+from a shared candidate stream. Each accepted template is stored on
+the `Cluster` as a `HomeStarTemplateOutcome` — no flat
+`homesystem{n}.dat` files are written.
 
-### Algorithm
+The authoritative spec for the driver, including the per-planet
+generation algorithm, is
+[home-system-templates.md → Stage-1 Driver](home-system-templates.md#stage-1-driver-template-library-generation).
+Summary:
 
-```
-for n = 3 to 9:
-    repeat:
-        generate_planets(n, earth_like=true, makeMiningEasier=true)
-    until viability check passes
-    save template as "homesystem{n}.dat"
-```
+- Roll a candidate star via the unchanged `rollStar` generator.
+- If the candidate's planet count `n ∈ [3, 9]` and slot `n` is empty,
+  run one template-generation attempt on it. On a viability score
+  inside the configured window (default `(53, 57)` exclusive), fill
+  slot `n`.
+- If slot `n` is already filled (or `n` is out of range), discard the
+  candidate.
+- Terminate when every slot is filled or the candidate-roll count
+  reaches `maxCandidateRolls` (default `10_000`).
 
-Planet generation with `earth_like=true` and `makeMiningEasier=true`
-follows the algorithm in [planet-creation.md](planet-creation.md). The
-viability check is also specified there (see "Home System Viability Check").
+### Match-Required Rule
 
-The "repeat until viability check passes" loop means that planets are
-regenerated from scratch until the system produces a `special == IDEAL_HOME_PLANET` planet
-**and** the viability score falls in the range `(53, 57)` exclusive.
+A template generated for `n` planets may be applied **only** to a star
+whose `len(star.Planets) == n`. A slot that finishes stage 1 as `nil`
+(the budget was exhausted before a viable score landed) makes every
+star of that planet count permanently ineligible to become a home
+system for this cluster. This is authentic but worth surfacing in the
+GM review UI alongside each slot's `Attempts` and `BestScore`.
+
+### Configuration
+
+The stage-1 driver exposes two knobs, wired through `worldgen.Generate`
+options:
+
+- `WithViabilityWindow(w)` — a `(Min, Max)` exclusive acceptance band.
+  Narrower windows are harsher, shifted windows raise or lower the
+  difficulty floor/ceiling.
+- `WithMaxCandidateRolls(n)` — the candidate-roll budget.
+
+Per-stage PRNG substreams are not yet plumbed through; stage 1
+currently shares the cluster generator's PRNG. Re-running stage 1 in
+isolation (with different seeds or windows) is a future extension —
+see `internal/worldgen/staged-generator-plan.md`.
 
 ## Phase 2 — System Selection
 
@@ -197,10 +221,12 @@ Once a candidate system is selected, apply a home system template to it
 
 ## Phase 3 — Template Application
 
-Load the template file matching the system's planet count
-(`homesystem{num_planets}.dat`). Apply minor random modifications to
-each planet in the template, then copy the modified template data into
-the system's planets.
+Read the `HomeStarTemplateOutcome` for the target star's planet count
+from `cluster.HomeStarTemplates[n]`. If `Template` is nil, the star is
+ineligible (the stage-1 driver did not fill slot `n` for this cluster).
+Otherwise, apply minor random modifications to each planet in the
+template, then copy the modified template data into the star's
+planets.
 
 ### Randomization Rules
 
