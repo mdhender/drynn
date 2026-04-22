@@ -204,18 +204,21 @@ for each candidate in shuffled_hexes:
     dist = hex_distance(candidate, nearest)
 
     if dist < minimumDistance:
-        if merge:
+        if merge and nearest.star_count < 5:
             nearest.star_count += 1
-            if nearest.star_count > 5:
-                nearest.star_count = roll(2, 5)
-        else:
-            discard candidate
+        // (if merge and nearest.star_count == 5, the candidate is
+        //  consumed with no change — 5 is a hard cap.)
+        // (if !merge, the candidate is simply discarded.)
     else:
         create new placement at candidate hex with star_count = 1
 
     if number of placements == desiredNumSystems:
         stop
 ```
+
+Game rules limit a system to at most 5 stars. The merge step honors
+that cap by incrementing up to 5 and then leaving further merges as
+no-ops.
 
 If all candidates are exhausted before reaching `desiredNumSystems`,
 return an error.

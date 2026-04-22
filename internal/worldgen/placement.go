@@ -28,6 +28,10 @@ type hexPlacement struct {
 //   - Otherwise discard the candidate
 //   - Else create a new one-star placement.
 //
+// On merge, a placement's star count is incremented and hard-capped at
+// 5. Candidates that would merge into a 5-star placement are consumed
+// without changing the star count.
+//
 // Generation stops when either:
 //   - exactly n placements have been created, or
 //   - all candidates have been exhausted.
@@ -60,11 +64,8 @@ func placeHexSystems(rng *prng.PRNG, r, n, minimumDistance int, merge bool) ([]h
 
 	for _, candidate := range disk {
 		if idx := nearestPlacementWithinDistance(rng, placements, candidate, minimumDistance); idx >= 0 {
-			if merge {
+			if merge && placements[idx].Stars < 5 {
 				placements[idx].Stars++
-				if placements[idx].Stars > 5 {
-					placements[idx].Stars = rng.Roll(2, 5)
-				}
 			}
 			continue
 		}
