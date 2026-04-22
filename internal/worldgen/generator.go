@@ -32,13 +32,19 @@ func Generate(options ...Option) (*Galaxy, error) {
 		Radius:  g.desiredRadius,
 		Systems: make([]*System, 0, len(placements)),
 	}
+	nextSystemID, nextStarID := 1, 1
 	for _, p := range placements {
 		sys := &System{
+			ID:    nextSystemID,
 			Hex:   p.Hex,
 			Stars: make([]*Star, 0, p.Stars),
 		}
+		nextSystemID++
 		for i := 0; i < p.Stars; i++ {
-			sys.Stars = append(sys.Stars, g.rollStar())
+			star := g.rollStar()
+			star.ID = nextStarID
+			nextStarID++
+			sys.Stars = append(sys.Stars, star)
 		}
 		galaxy.Systems = append(galaxy.Systems, sys)
 	}

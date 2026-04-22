@@ -15,7 +15,7 @@ go build ./cmd/server            # Build web server
 go build ./cmd/db                # Build database CLI
 go run ./cmd/server              # Start server
 go run ./cmd/db                  # Database CLI (init-config, seed-admin, jwt-key)
-go test ./...                    # Run all tests
+go test ./...                    # Run all tests (needs Docker; see AGENTS.md — ask to run tools/start-colima.sh first)
 go test ./internal/service/...   # Run tests for a single package
 sqlc generate                    # Regenerate DB code after editing db/queries/*.sql
 atlas migrate diff <name> --env local   # Generate migration after editing db/schema.sql

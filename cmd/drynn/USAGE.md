@@ -98,7 +98,7 @@ drynn test-hexmap [flags]
 | `--radius`           | `15`    | Disk radius in hexes                                        |
 | `--systems`          | `100`   | Number of star systems to place                             |
 | `--min-distance`     | `0`     | Minimum hex distance between systems                        |
-| `--merge`            | *(off)* | Merge stars when too close instead of discarding candidate  |
+| `--no-merge`         | *(off)* | Discard placements that are too close instead of merging their stars (default is to merge) |
 | `--seed1`            | `20`    | PRNG seed value 1                                           |
 | `--seed2`            | `20`    | PRNG seed value 2                                           |
 | `--use-random-seeds` | *(off)* | Use random seeds instead of `--seed1`/`--seed2`             |
@@ -120,7 +120,7 @@ drynn test-galaxy [flags]
 | `--radius`           | `15`    | Disk radius in hexes                                        |
 | `--systems`          | `100`   | Target number of star systems to place                      |
 | `--min-distance`     | `0`     | Minimum hex distance between systems                        |
-| `--merge`            | *(off)* | Merge stars when too close instead of discarding candidate  |
+| `--no-merge`         | *(off)* | Discard placements that are too close instead of merging their stars (default is to merge) |
 | `--seed1`            | `20`    | PRNG seed value 1                                           |
 | `--seed2`            | `20`    | PRNG seed value 2                                           |
 | `--use-random-seeds` | *(off)* | Use random seeds instead of `--seed1`/`--seed2`             |
@@ -131,6 +131,28 @@ drynn test-galaxy [flags]
 | `--out`              | `.`     | Output directory for `galaxy.html`                          |
 
 Always prints system/star/planet counts and a star-count breakdown. When `--html` is set, writes `galaxy.html` to `--out`; `--coords`, `--planets`, and `--pixel-size` only affect the HTML output.
+
+## simulate
+
+Simulates the GM's interactive cluster-creation workflow locally: generates a galaxy, writes `galaxy.html`, then produces a home-system template for each planet count 3–9 and writes `home-system-{N}.html`. Optionally writes the full run state to a deterministic JSON file for review and golden file tests. Local diagnostic; does not contact the server.
+
+```
+drynn simulate [flags]
+```
+
+| Flag                 | Default | Description                                                        |
+|----------------------|---------|--------------------------------------------------------------------|
+| `--radius`           | `15`    | Disk radius in hexes                                               |
+| `--systems`          | `100`   | Target number of star systems to place                             |
+| `--min-distance`     | `0`     | Minimum hex distance between systems                               |
+| `--no-merge`         | *(off)* | Discard placements that are too close instead of merging their stars (default is to merge) |
+| `--seed1`            | `20`    | PRNG seed value 1                                                  |
+| `--seed2`            | `20`    | PRNG seed value 2                                                  |
+| `--use-random-seeds` | *(off)* | Use random seeds instead of `--seed1`/`--seed2`                    |
+| `--out`              | `.`     | Output directory for HTML reports                                  |
+| `--json`             | `""`    | Also write deterministic run state to this JSON path               |
+
+Galaxy and template generation share a single PRNG stream, so a given `(seed1, seed2)` pair reproduces the entire run byte-for-byte. Template acceptance uses the viability window `(53, 57)` exclusive; for each planet count, candidate stars (those with exactly that many planets) are iterated in `Star.ID` order with no separate attempt cap. If no candidate yields a viable template for a planet count, the corresponding `home-system-{N}.html` contains an "unavailable" report and the command continues.
 
 ## game
 

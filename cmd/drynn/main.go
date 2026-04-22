@@ -208,7 +208,7 @@ func run(args []string) error {
 	testHexRadius := testHexFlags.IntLong("radius", 15, "disk radius in hexes")
 	testHexSystems := testHexFlags.IntLong("systems", 100, "number of star systems to place")
 	testHexMinDist := testHexFlags.IntLong("min-distance", 0, "minimum distance between systems")
-	testHexMerge := testHexFlags.BoolLong("merge", "merge stars when too close instead of discarding")
+	testHexNoMerge := testHexFlags.BoolLong("no-merge", "discard placements that are too close instead of merging their stars (default is to merge)")
 	testHexSeed1 := testHexFlags.UintLong("seed1", 20, "PRNG seed value 1")
 	testHexSeed2 := testHexFlags.UintLong("seed2", 20, "PRNG seed value 2")
 	testHexRandomSeeds := testHexFlags.BoolLong("use-random-seeds", "use random seeds instead of --seed1/--seed2")
@@ -230,7 +230,7 @@ func run(args []string) error {
 				worldgen.WithDesiredRadius(*testHexRadius),
 				worldgen.WithDesiredNumberOfSystems(*testHexSystems),
 				worldgen.WithMinimumDistance(*testHexMinDist),
-				worldgen.WithMerge(*testHexMerge),
+				worldgen.WithMerge(!*testHexNoMerge),
 				worldgen.WithPRNG(prng.NewFromSeed(seed1, seed2)),
 			)
 			if err != nil {
@@ -356,7 +356,7 @@ func run(args []string) error {
 	testGalaxyRadius := testGalaxyFlags.IntLong("radius", 15, "disk radius in hexes")
 	testGalaxySystems := testGalaxyFlags.IntLong("systems", 100, "target number of star systems to place")
 	testGalaxyMinDist := testGalaxyFlags.IntLong("min-distance", 0, "minimum distance between systems")
-	testGalaxyMerge := testGalaxyFlags.BoolLong("merge", "merge stars when too close instead of discarding")
+	testGalaxyNoMerge := testGalaxyFlags.BoolLong("no-merge", "discard placements that are too close instead of merging their stars (default is to merge)")
 	testGalaxySeed1 := testGalaxyFlags.UintLong("seed1", 20, "PRNG seed value 1")
 	testGalaxySeed2 := testGalaxyFlags.UintLong("seed2", 20, "PRNG seed value 2")
 	testGalaxyRandomSeeds := testGalaxyFlags.BoolLong("use-random-seeds", "use random seeds instead of --seed1/--seed2")
@@ -381,7 +381,7 @@ func run(args []string) error {
 				worldgen.WithDesiredRadius(*testGalaxyRadius),
 				worldgen.WithDesiredNumberOfSystems(*testGalaxySystems),
 				worldgen.WithMinimumDistance(*testGalaxyMinDist),
-				worldgen.WithMerge(*testGalaxyMerge),
+				worldgen.WithMerge(!*testGalaxyNoMerge),
 				worldgen.WithPRNG(prng.NewFromSeed(seed1, seed2)),
 			)
 			if err != nil {
@@ -426,6 +426,37 @@ func run(args []string) error {
 				fmt.Printf("wrote %s\n", outPath)
 			}
 			return nil
+		},
+	}
+
+	// simulate (standalone; generates galaxy + home-system templates locally)
+	simulateFlags := ff.NewFlagSet("simulate")
+	simulateRadius := simulateFlags.IntLong("radius", 15, "disk radius in hexes")
+	simulateSystems := simulateFlags.IntLong("systems", 100, "target number of star systems to place")
+	simulateMinDist := simulateFlags.IntLong("min-distance", 0, "minimum distance between systems")
+	simulateNoMerge := simulateFlags.BoolLong("no-merge", "discard placements that are too close instead of merging their stars (default is to merge)")
+	simulateSeed1 := simulateFlags.UintLong("seed1", 20, "PRNG seed value 1")
+	simulateSeed2 := simulateFlags.UintLong("seed2", 20, "PRNG seed value 2")
+	simulateRandomSeeds := simulateFlags.BoolLong("use-random-seeds", "use random seeds instead of --seed1/--seed2")
+	simulateOut := simulateFlags.StringLong("out", ".", "output directory for the generated HTML")
+	simulateJSON := simulateFlags.StringLong("json", "", "also write deterministic run state to this JSON path")
+	simulateCmd := &ff.Command{
+		Name:      "simulate",
+		Usage:     "simulate [flags]",
+		ShortHelp: "generate a galaxy and home-system templates, writing HTML reports",
+		Flags:     simulateFlags,
+		Exec: func(ctx context.Context, args []string) error {
+			return runSimulate(simulateOpts{
+				radius:      *simulateRadius,
+				systems:     *simulateSystems,
+				minDistance: *simulateMinDist,
+				merge:       !*simulateNoMerge,
+				seed1:       uint64(*simulateSeed1),
+				seed2:       uint64(*simulateSeed2),
+				randomSeeds: *simulateRandomSeeds,
+				outDir:      *simulateOut,
+				jsonPath:    *simulateJSON,
+			})
 		},
 	}
 
@@ -525,6 +556,7 @@ func run(args []string) error {
 			versionCmd,
 			testHexCmd,
 			testGalaxyCmd,
+			simulateCmd,
 			gameCmd,
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -594,6 +626,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  version      print the build version")
 	fmt.Fprintln(os.Stderr, "  test-hexmap  generate a hex map with star systems and render to HTML")
 	fmt.Fprintln(os.Stderr, "  test-galaxy  generate a galaxy and optionally render it to HTML")
+	fmt.Fprintln(os.Stderr, "  simulate     generate a galaxy and home-system templates, writing HTML reports")
 	fmt.Fprintln(os.Stderr, "  game         manage games (create, list, show, update, delete)")
 }
 
