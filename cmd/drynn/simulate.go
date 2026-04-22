@@ -70,7 +70,7 @@ func runSimulate(opts simulateOpts) error {
 	outcomes := make([]worldgen.TemplateOutcome, 0, 7)
 	for n := 3; n <= 9; n++ {
 		candidates := starsWithPlanetCount(cluster, n)
-		template := worldgen.GenerateHomeSystemTemplate(rng, cluster, n)
+		template := worldgen.GenerateHomeStarTemplate(rng, cluster, n)
 		outcomes = append(outcomes, worldgen.TemplateOutcome{
 			NumPlanets:     n,
 			CandidateCount: len(candidates),
@@ -80,12 +80,12 @@ func runSimulate(opts simulateOpts) error {
 		path := filepath.Join(opts.outDir, fmt.Sprintf("home-system-%d.html", n))
 		var html []byte
 		if template == nil {
-			html = worldgen.HomeSystemTemplateUnavailableHTML(n, len(candidates))
+			html = worldgen.HomeStarTemplateUnavailableHTML(n, len(candidates))
 			fmt.Printf("n=%d: no viable template (tried %d candidate stars)\n", n, len(candidates))
 		} else {
 			html = template.ToHTML()
-			fmt.Printf("n=%d: viable template (source star #%d, score %d, tried from %d candidates)\n",
-				n, template.SourceStarID, template.ViabilityScore, len(candidates))
+			fmt.Printf("n=%d: viable template (score %d, tried from %d candidates)\n",
+				n, template.ViabilityScore, len(candidates))
 		}
 		if err := os.WriteFile(path, html, 0o644); err != nil {
 			return fmt.Errorf("write %s: %w", path, err)

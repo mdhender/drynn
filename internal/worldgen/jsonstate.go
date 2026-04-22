@@ -25,7 +25,7 @@ type SimulationOutcome struct {
 type TemplateOutcome struct {
 	NumPlanets     int
 	CandidateCount int
-	Template       *HomeSystemTemplate
+	Template       *HomeStarTemplate
 }
 
 // MarshalSimulationJSON returns a pretty-printed, deterministic JSON
@@ -86,7 +86,6 @@ type templateDoc struct {
 	CandidateCount int                 `json:"candidate_count"`
 	Viable         bool                `json:"viable"`
 	ViabilityScore int                 `json:"viability_score,omitempty"`
-	SourceStarID   int                 `json:"source_star_id,omitempty"`
 	Planets        []templatePlanetDoc `json:"planets,omitempty"`
 }
 
@@ -164,7 +163,6 @@ func buildTemplateDoc(o TemplateOutcome) templateDoc {
 	}
 	td.Viable = true
 	td.ViabilityScore = o.Template.ViabilityScore
-	td.SourceStarID = o.Template.SourceStarID
 	td.Planets = make([]templatePlanetDoc, 0, len(o.Template.Planets))
 	for _, p := range o.Template.Planets {
 		td.Planets = append(td.Planets, templatePlanetDoc{

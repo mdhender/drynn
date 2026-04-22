@@ -30,35 +30,34 @@ type TemplateGas struct {
 	Percent int
 }
 
-// HomeSystemTemplate is the output of one template-generation attempt.
+// HomeStarTemplate is the output of one template-generation attempt.
 // It is populated whether or not the attempt passes the viability gate;
 // the caller inspects ViabilityScore to decide acceptance.
-type HomeSystemTemplate struct {
+type HomeStarTemplate struct {
 	NumPlanets     int
 	Planets        []TemplatePlanet
 	ViabilityScore int
-	SourceStarID   int
 }
 
-// GenerateHomeSystemTemplate picks a star from cluster that has numPlanets
+// GenerateHomeStarTemplate picks a star from cluster that has numPlanets
 // planets, then returns the first viable home-system template produced by
-// GenerateHomeSystemTemplateUntilViable. Returns nil if no matching star
+// GenerateHomeStarTemplateUntilViable. Returns nil if no matching star
 // yields a viable template.
-func GenerateHomeSystemTemplate(r *prng.PRNG, cluster *Cluster, numPlanets int) *HomeSystemTemplate {
-	return GenerateHomeSystemTemplateUntilViable(r, cluster, numPlanets)
+func GenerateHomeStarTemplate(r *prng.PRNG, cluster *Cluster, numPlanets int) *HomeStarTemplate {
+	return GenerateHomeStarTemplateUntilViable(r, cluster, numPlanets)
 }
 
-// GenerateHomeSystemTemplateUntilViable collects every star in cluster with
+// GenerateHomeStarTemplateUntilViable collects every star in cluster with
 // exactly numPlanets planets, sorts them by Star.ID for determinism, and
 // runs one template-generation attempt per star using the shared PRNG.
 // It returns the first template whose viability score falls in the
 // exclusive window (53, 57), or nil if the star slice is exhausted first.
 //
 // The star slice also bounds the attempt count — there is no separate cap.
-func GenerateHomeSystemTemplateUntilViable(r *prng.PRNG, cluster *Cluster, numPlanets int) *HomeSystemTemplate {
+func GenerateHomeStarTemplateUntilViable(r *prng.PRNG, cluster *Cluster, numPlanets int) *HomeStarTemplate {
 	candidates := collectStarsWithPlanetCount(cluster, numPlanets)
 	for _, star := range candidates {
-		template, score := generateHomeSystemTemplateAttempt(r, star)
+		template, score := generateHomeStarTemplateAttempt(r, star)
 		if score > 53 && score < 57 {
 			return template
 		}
@@ -84,16 +83,15 @@ func collectStarsWithPlanetCount(cluster *Cluster, numPlanets int) []*Star {
 var startDiameter = [10]int{0, 5, 12, 13, 7, 20, 143, 121, 51, 49}
 var startTempClass = [10]int{0, 29, 27, 11, 9, 8, 6, 5, 5, 3}
 
-// generateHomeSystemTemplateAttempt runs one template-generation attempt
+// generateHomeStarTemplateAttempt runs one template-generation attempt
 // for a star with len(star.Planets) planets. It always returns a non-nil
 // template and its computed viability score; acceptance is the caller's
 // job. See internal/worldgen/design/home-system-template-design.md.
-func generateHomeSystemTemplateAttempt(r *prng.PRNG, star *Star) (*HomeSystemTemplate, int) {
+func generateHomeStarTemplateAttempt(r *prng.PRNG, star *Star) (*HomeStarTemplate, int) {
 	numPlanets := len(star.Planets)
-	template := &HomeSystemTemplate{
-		NumPlanets:   numPlanets,
-		Planets:      make([]TemplatePlanet, 0, numPlanets),
-		SourceStarID: star.ID,
+	template := &HomeStarTemplate{
+		NumPlanets: numPlanets,
+		Planets:    make([]TemplatePlanet, 0, numPlanets),
 	}
 
 	earthLikeConsumed := false

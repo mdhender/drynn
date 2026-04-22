@@ -11,7 +11,7 @@ import (
 // ToHTML renders a self-contained HTML page describing a single home-system
 // template. Layout mirrors the per-system section of Cluster.ToHTML so both
 // reports feel like the same document family.
-func (t *HomeSystemTemplate) ToHTML() []byte {
+func (t *HomeStarTemplate) ToHTML() []byte {
 	var buf bytes.Buffer
 	buf.WriteString("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n")
 	fmt.Fprintf(&buf, "<meta charset=\"UTF-8\">\n<title>Home System Template (%d planets)</title>\n", t.NumPlanets)
@@ -21,7 +21,6 @@ func (t *HomeSystemTemplate) ToHTML() []byte {
 	fmt.Fprintln(&buf, `<section class="report">`)
 	fmt.Fprintf(&buf, "<h1>Home System Template — %d planets</h1>\n", t.NumPlanets)
 	fmt.Fprintln(&buf, `<table><tbody>`)
-	fmt.Fprintf(&buf, "<tr><th>Source Star ID</th><td>%d</td></tr>\n", t.SourceStarID)
 	fmt.Fprintf(&buf, "<tr><th>Viability Score</th><td>%d</td></tr>\n", t.ViabilityScore)
 	fmt.Fprintln(&buf, `</tbody></table>`)
 
@@ -51,11 +50,11 @@ func (t *HomeSystemTemplate) ToHTML() []byte {
 	return buf.Bytes()
 }
 
-// HomeSystemTemplateUnavailableHTML renders a report explaining that no
+// HomeStarTemplateUnavailableHTML renders a report explaining that no
 // viable template could be produced for the requested planet count. This
 // keeps the simulation's output complete even when the cluster does not
 // happen to yield a candidate.
-func HomeSystemTemplateUnavailableHTML(numPlanets, candidateCount int) []byte {
+func HomeStarTemplateUnavailableHTML(numPlanets, candidateCount int) []byte {
 	var buf bytes.Buffer
 	buf.WriteString("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n")
 	fmt.Fprintf(&buf, "<meta charset=\"UTF-8\">\n<title>Home System Template (%d planets) — unavailable</title>\n", numPlanets)
