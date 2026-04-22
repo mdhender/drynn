@@ -83,11 +83,6 @@ type HomeStarTemplateOutcome struct {
 // The returned slice always has length 10 with indexes 0..2 nil and
 // 3..9 non-nil.
 func GenerateHomeStarTemplates(rng *prng.PRNG, window ViabilityWindow, maxCandidateRolls int) []*HomeStarTemplateOutcome {
-	g := &Generator{r: rng}
-	return g.generateHomeStarTemplates(window, maxCandidateRolls)
-}
-
-func (g *Generator) generateHomeStarTemplates(window ViabilityWindow, maxCandidateRolls int) []*HomeStarTemplateOutcome {
 	if maxCandidateRolls <= 0 {
 		maxCandidateRolls = DefaultMaxCandidateRolls
 	}
@@ -99,7 +94,7 @@ func (g *Generator) generateHomeStarTemplates(window ViabilityWindow, maxCandida
 
 	filled := 0
 	for rolls := 0; rolls < maxCandidateRolls && filled < 7; rolls++ {
-		candidate, _ := g.rollStar()
+		candidate, _ := rollStar(rng)
 		n := candidate.NumPlanets
 		if n < 3 || n > 9 {
 			continue
@@ -108,7 +103,7 @@ func (g *Generator) generateHomeStarTemplates(window ViabilityWindow, maxCandida
 		if slot.Template != nil {
 			continue
 		}
-		template, score := generateHomeStarTemplateAttempt(g.r, n)
+		template, score := generateHomeStarTemplateAttempt(rng, n)
 		slot.Attempts++
 		if score > slot.BestScore {
 			slot.BestScore = score

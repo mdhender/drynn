@@ -47,14 +47,14 @@ the staged code lands under the final names.
 
 ## 3. Generator / Cluster shape refactor
 
-- [ ] Split the `Generator`'s single PRNG into one substream per stage: `rngTemplates`, `rngPlacement`, `rngStars`, `rngDeposits`. Use `prng.PRNG.Split()` to derive substreams from a master seed; each stage also accepts its own seed override.
-- [x] Add `Cluster.HomeStarTemplates` — slice of length 10 indexed by planet count (3..9). Each slot is a `HomeStarTemplateOutcome` with `Attempts`, `BestScore`, and (possibly nil) `Template`. `AcceptedSeed` will be added when PRNG substreams land.
+- [x] Split the `Generator`'s single PRNG into per-stage substreams via `prng.PRNG.Split()`. `Generate` splits the master twice (templates, cluster); `GenerateCluster` internally splits again into placement + stars. Sibling-stream isolation is unit-tested in `internal/prng/prng_test.go` and verified end-to-end (changing the viability window under a fixed master seed does not perturb cluster systems/stars/planets).
+- [x] Add `Cluster.HomeStarTemplates` — slice of length 10 indexed by planet count (3..9). Each slot is a `HomeStarTemplateOutcome` with `Attempts`, `BestScore`, and (possibly nil) `Template`. `AcceptedSeed` deferred — not load-bearing yet.
 - [x] Flatten `Cluster` into parallel `Systems`, `Stars`, `Planets` slices with `SystemID`/`StarID` references. `rollStar` returns `(*Star, []*Planet)`; `Generate` stamps IDs and appends. Viewers/JSON/CLI precompute `map[ParentID][]Child` for efficient per-parent access.
-- [ ] Split public entry points to reflect the staged API. Per the agreed design (2026-04-22), templates are **not** an input to cluster generation — they're produced in stage 1 and attached to the cluster as a stored library for later empire-assignment use.
-  - `GenerateHomeStarTemplates(rng, window, maxRolls) []*HomeStarTemplateOutcome` — already public.
-  - `GenerateCluster(rng, placementOpts) *Cluster` — systems, stars, planets.
-  - `GenerateDeposits(rng, cluster)` — mutates `cluster.Deposits` and/or per-planet deposit fields (design deferred).
-- [ ] Retain a single `Generate(options...)` convenience wrapper for tests and simple CLI invocations. Internally it splits the master PRNG into stage substreams and runs stages in order, attaching templates to the cluster.
+- [x] Split public entry points to reflect the staged API. Per the agreed design (2026-04-22), templates are **not** an input to cluster generation — they're produced in stage 1 and attached to the cluster as a stored library for later empire-assignment use.
+  - `GenerateHomeStarTemplates(rng, window, maxRolls) []*HomeStarTemplateOutcome` — public.
+  - `GenerateCluster(rng, ClusterOptions) (*Cluster, error)` — systems, stars, planets.
+  - `GenerateDeposits(rng, cluster)` — deferred (stage-4 design pending).
+- [x] Retain a single `Generate(options...)` convenience wrapper for tests and simple CLI invocations. Internally it splits the master PRNG into stage substreams and runs stages in order, attaching templates to the cluster.
 
 ## 4. Stage-1 implementation (single shared-candidate loop)
 

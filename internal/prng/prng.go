@@ -78,6 +78,13 @@ func (p *PRNG) Shuffle(n int, swap func(i, j int)) {
 	p.r.Shuffle(n, swap)
 }
 
+func (p *PRNG) Split() *PRNG {
+	s1, s2 := p.r.Uint64(), p.r.Uint64()
+	return &PRNG{
+		r: rand.New(rand.NewPCG(s1, s2)),
+	}
+}
+
 func (p *PRNG) Vary5Percent(x int) float64 {
 	return float64(93*x+p.D6(2)) / 100.0
 }

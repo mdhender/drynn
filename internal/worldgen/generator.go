@@ -9,6 +9,14 @@ import (
 	"github.com/mdhender/drynn/internal/prng"
 )
 
+// Generate is the convenience wrapper that runs all worldgen stages
+// end-to-end with a single master PRNG. Use it for tests and simple CLI
+// invocations. For staged workflows (GM review between stages), call
+// GenerateHomeStarTemplates and GenerateCluster directly.
+//
+// Generate splits the master PRNG once per stage using prng.PRNG.Split,
+// so changing one stage's inputs does not shift another stage's output
+// under the same master seed.
 func Generate(options ...Option) (*Cluster, error) {
 	g := &Generator{
 		desiredNumSystems: 100,
@@ -25,13 +33,51 @@ func Generate(options ...Option) (*Cluster, error) {
 		}
 	}
 
-	placements, err := placeHexSystems(g.r, g.desiredRadius, g.desiredNumSystems, g.minimumDistance, g.merge)
+	rngTemplates := g.r.Split()
+	rngCluster := g.r.Split()
+	// rngDeposits := g.r.Split()  // reserved for stage 4 (design pending)
+
+	cluster, err := GenerateCluster(rngCluster, ClusterOptions{
+		Radius:          g.desiredRadius,
+		NumSystems:      g.desiredNumSystems,
+		MinimumDistance: g.minimumDistance,
+		Merge:           g.merge,
+	})
+	if cluster != nil {
+		cluster.HomeStarTemplates = GenerateHomeStarTemplates(rngTemplates, g.viabilityWindow, g.maxCandidateRolls)
+	}
+	return cluster, err
+}
+
+// ClusterOptions configures GenerateCluster. Zero values for NumSystems
+// and Radius are rejected by the underlying hex-placement generator.
+type ClusterOptions struct {
+	Radius          int
+	NumSystems      int
+	MinimumDistance int
+	Merge           bool
+}
+
+// GenerateCluster runs stages 2 (hex placement) and 3 (star + planet
+// rolling). It splits the provided PRNG internally to keep placement
+// and star rolls on independent substreams, then stamps sequential
+// System/Star/Planet IDs into the Cluster's flat slices.
+//
+// On placement error (e.g., disk capacity exhausted with merge=false),
+// the returned Cluster is non-nil and contains whatever systems were
+// placed; the caller decides whether to continue. HomeStarTemplates is
+// not populated by this function — attach them via GenerateHomeStarTemplates.
+func GenerateCluster(rng *prng.PRNG, opts ClusterOptions) (*Cluster, error) {
+	rngPlacement := rng.Split()
+	rngStars := rng.Split()
+
+	placements, err := placeHexSystems(rngPlacement, opts.Radius, opts.NumSystems, opts.MinimumDistance, opts.Merge)
 	if err != nil {
-		return nil, fmt.Errorf("hex gen: %w", err)
+		err = fmt.Errorf("hex gen: %w", err)
 	}
 
 	cluster := &Cluster{
-		Radius:  g.desiredRadius,
+		Radius:  opts.Radius,
 		Systems: make([]*System, 0, len(placements)),
 	}
 	nextSystemID, nextStarID, nextPlanetID := 1, 1, 1
@@ -39,7 +85,7 @@ func Generate(options ...Option) (*Cluster, error) {
 		sys := &System{ID: nextSystemID, Hex: p.Hex}
 		nextSystemID++
 		for i := 0; i < p.Stars; i++ {
-			star, planets := g.rollStar()
+			star, planets := rollStar(rngStars)
 			star.ID = nextStarID
 			star.SystemID = sys.ID
 			nextStarID++
@@ -54,19 +100,17 @@ func Generate(options ...Option) (*Cluster, error) {
 		}
 		cluster.Systems = append(cluster.Systems, sys)
 	}
-
-	cluster.HomeStarTemplates = g.generateHomeStarTemplates(g.viabilityWindow, g.maxCandidateRolls)
-	return cluster, nil
+	return cluster, err
 }
 
 // rollStar rolls a fresh star and the planets orbiting it. ID, SystemID,
 // and per-planet ID/StarID/Orbit are stamped by the caller; rollStar only
 // populates the physical attributes.
-func (g *Generator) rollStar() (*Star, []*Planet) {
+func rollStar(r *prng.PRNG) (*Star, []*Planet) {
 	star := &Star{}
 
 	// determine star type randomly
-	switch g.r.Roll(1, 10) {
+	switch r.Roll(1, 10) {
 	case 1: // 10% dwarf
 		star.Kind = StarDwarf
 	case 2: // 10% degenerate
@@ -78,7 +122,7 @@ func (g *Generator) rollStar() (*Star, []*Planet) {
 	}
 
 	// determine star color randomly
-	switch g.r.Roll(1, 7) {
+	switch r.Roll(1, 7) {
 	case 1:
 		star.Color = ColorBlue
 	case 2:
@@ -98,7 +142,7 @@ func (g *Generator) rollStar() (*Star, []*Planet) {
 	}
 
 	// determine star size randomly
-	star.Size = g.r.D10(1) - 1
+	star.Size = r.D10(1) - 1
 
 	// determine number of planets orbiting this star.
 	// The -2 is a bias to offset the multiple die rolls so the average
@@ -135,23 +179,23 @@ func (g *Generator) rollStar() (*Star, []*Planet) {
 		panic(fmt.Sprintf("assert(star.Kind != %d)", star.Kind))
 	}
 	for i := 1; i <= numberOfRolls; i++ {
-		star.NumPlanets += g.r.Roll(1, sizeOfDie)
+		star.NumPlanets += r.Roll(1, sizeOfDie)
 	}
 	// KNOWN DEFECT: these clamping loops use random increments, burning an
 	// unpredictable number of RNG calls. This makes reproducibility fragile
 	// if roll ranges change. Needs a design review to replace with bounded
 	// clamping.
 	for star.NumPlanets < 1 { // bump up to a minimum of 1
-		star.NumPlanets += g.r.Roll(1, 2)
+		star.NumPlanets += r.Roll(1, 2)
 	}
 	for star.NumPlanets > 9 { // bump down to a maximum of 9
-		star.NumPlanets -= g.r.Roll(1, 3)
+		star.NumPlanets -= r.Roll(1, 3)
 	}
 
 	planets := make([]*Planet, 0, star.NumPlanets)
 	var previousPlanet *Planet
 	for orbit := 1; orbit <= star.NumPlanets; orbit++ {
-		p := g.rollPlanet(star, orbit, previousPlanet)
+		p := rollPlanet(r, star, orbit, previousPlanet)
 		planets = append(planets, p)
 		previousPlanet = p
 	}
@@ -161,7 +205,7 @@ func (g *Generator) rollStar() (*Star, []*Planet) {
 
 // rollPlanet generates a single planet at the given orbit around star.
 // previousPlanet is used to enforce temperature ordering (may be nil for orbit 1).
-func (g *Generator) rollPlanet(star *Star, orbit int, previousPlanet *Planet) *Planet {
+func rollPlanet(r *prng.PRNG, star *Star, orbit int, previousPlanet *Planet) *Planet {
 	seedDiameter := []int{0, 5, 12, 13, 7, 20, 143, 121, 51, 49} // thousands of km
 	seedTemperatureClass := []int{0, 29, 27, 11, 9, 8, 6, 5, 5, 3}
 
@@ -185,8 +229,8 @@ func (g *Generator) rollPlanet(star *Star, orbit int, previousPlanet *Planet) *P
 		dieSize = 2
 	}
 	for n := 4; n > 0; n-- {
-		delta := g.r.Roll(1, dieSize)
-		if g.r.D100(1) > 50 {
+		delta := r.Roll(1, dieSize)
+		if r.D100(1) > 50 {
 			p.Diameter += delta
 		} else {
 			p.Diameter -= delta
@@ -194,16 +238,16 @@ func (g *Generator) rollPlanet(star *Star, orbit int, previousPlanet *Planet) *P
 	}
 	// KNOWN DEFECT: clamping loop uses random increments. See rollStar.
 	for p.Diameter < 3 { // bump up to a minimum of 3
-		p.Diameter += g.r.D4(1)
+		p.Diameter += r.D4(1)
 	}
 
 	isGasGiant := p.Diameter > 40
 
 	// compute density
 	if isGasGiant { // range 0.6 to 1.7
-		p.Density = float64(58+g.r.Roll(1, 56)+g.r.Roll(1, 56)) / 100
+		p.Density = float64(58+r.Roll(1, 56)+r.Roll(1, 56)) / 100
 	} else { // range 3.7 to 5.7
-		p.Density = float64(368+g.r.Roll(1, 101)+g.r.Roll(1, 101)) / 100
+		p.Density = float64(368+r.Roll(1, 101)+r.Roll(1, 101)) / 100
 	}
 
 	// compute gravity (the divisor 72 is calibrated so that Earth's values
@@ -215,10 +259,10 @@ func (g *Generator) rollPlanet(star *Star, orbit int, previousPlanet *Planet) *P
 	if dieSize < 2 {
 		dieSize = 2
 	}
-	numberOfRolls := g.r.Roll(1, 3) + g.r.Roll(1, 3) + g.r.Roll(1, 3)
+	numberOfRolls := r.Roll(1, 3) + r.Roll(1, 3) + r.Roll(1, 3)
 	for ; numberOfRolls > 0; numberOfRolls-- {
-		delta := g.r.Roll(1, dieSize)
-		if g.r.D100(1) > 50 {
+		delta := r.Roll(1, dieSize)
+		if r.D100(1) > 50 {
 			p.TemperatureClass += delta
 		} else {
 			p.TemperatureClass -= delta
@@ -231,17 +275,17 @@ func (g *Generator) rollPlanet(star *Star, orbit int, previousPlanet *Planet) *P
 	}
 	// KNOWN DEFECT: clamping loop uses random increments. See rollStar.
 	for p.TemperatureClass < minTC {
-		p.TemperatureClass += g.r.Roll(1, 2)
+		p.TemperatureClass += r.Roll(1, 2)
 	}
 	for p.TemperatureClass > maxTC {
-		p.TemperatureClass -= g.r.Roll(1, 2)
+		p.TemperatureClass -= r.Roll(1, 2)
 	}
 
 	// warm small systems
 	if star.NumPlanets < 4 && orbit < 3 {
 		// KNOWN DEFECT: clamping loop uses random increments. See rollStar.
 		for p.TemperatureClass < 12 {
-			p.TemperatureClass += g.r.Roll(1, 4)
+			p.TemperatureClass += r.Roll(1, 4)
 		}
 	}
 
@@ -259,10 +303,10 @@ func (g *Generator) rollPlanet(star *Star, orbit int, previousPlanet *Planet) *P
 	if dieSize < 2 {
 		dieSize = 2
 	}
-	numberOfRolls = g.r.Roll(1, 3) + g.r.Roll(1, 3) + g.r.Roll(1, 3)
+	numberOfRolls = r.Roll(1, 3) + r.Roll(1, 3) + r.Roll(1, 3)
 	for ; numberOfRolls > 0; numberOfRolls-- {
-		delta := g.r.Roll(1, dieSize)
-		if g.r.D100(1) > 50 {
+		delta := r.Roll(1, dieSize)
+		if r.D100(1) > 50 {
 			p.PressureClass += delta
 		} else {
 			p.PressureClass -= delta
@@ -275,16 +319,16 @@ func (g *Generator) rollPlanet(star *Star, orbit int, previousPlanet *Planet) *P
 	}
 	// KNOWN DEFECT: clamping loop uses random increments. See rollStar.
 	for p.PressureClass < minPC {
-		p.PressureClass += g.r.Roll(1, 3)
+		p.PressureClass += r.Roll(1, 3)
 	}
 	for p.PressureClass > maxPC {
-		p.PressureClass -= g.r.Roll(1, 3)
+		p.PressureClass -= r.Roll(1, 3)
 	}
 
 	// randomize atmosphere. a pressure class of 0 means a vacuum, so skip
 	// gas selection and leave p.Gases empty.
 	if p.PressureClass > 0 {
-		numberOfGasesWanted := g.r.D4(2) / 2
+		numberOfGasesWanted := r.D4(2) / 2
 		var minGasIndex, maxGasIndex AtmosphericGas
 		switch n := 100 * p.TemperatureClass / 225; {
 		case n <= 1:
@@ -326,10 +370,10 @@ func (g *Generator) rollPlanet(star *Star, orbit int, previousPlanet *Planet) *P
 				} else if i == GasO2 {
 					maxQty = 50
 				}
-				if g.r.Roll(1, 3) >= skipChance { // skip the gas for some reason
+				if r.Roll(1, 3) >= skipChance { // skip the gas for some reason
 					continue
 				}
-				p.Gases[i] = g.r.Roll(1, maxQty)
+				p.Gases[i] = r.Roll(1, maxQty)
 				if len(p.Gases) == 1 {
 					// excess will be allocated to the first gas found
 					firstGasFound = i
@@ -353,7 +397,7 @@ func (g *Generator) rollPlanet(star *Star, orbit int, previousPlanet *Planet) *P
 	// randomize mining difficulty
 	p.MiningDifficulty = 0
 	for {
-		p.MiningDifficulty = float64((g.r.Roll(1, 3)+g.r.Roll(1, 3)-g.r.Roll(1, 4))*g.r.Roll(1, p.Diameter) + g.r.Roll(1, 30) + g.r.Roll(1, 30))
+		p.MiningDifficulty = float64((r.Roll(1, 3)+r.Roll(1, 3)-r.Roll(1, 4))*r.Roll(1, p.Diameter) + r.Roll(1, 30) + r.Roll(1, 30))
 		if p.MiningDifficulty >= 40 && p.MiningDifficulty <= 500 {
 			break
 		}
@@ -394,6 +438,9 @@ func WithMerge(merge bool) Option {
 	}
 }
 
+// WithPRNG sets the master PRNG used by Generate. Generate splits it
+// once per stage (templates, cluster, deposits) so stages are
+// independently re-seedable without perturbing siblings.
 func WithPRNG(r *prng.PRNG) Option {
 	return func(g *Generator) error {
 		g.r = r
