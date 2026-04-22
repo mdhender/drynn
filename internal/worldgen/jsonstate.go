@@ -36,26 +36,31 @@ type stateDoc struct {
 type clusterDoc struct {
 	Radius            int                   `json:"radius"`
 	Systems           []systemDoc           `json:"systems"`
+	Stars             []starDoc             `json:"stars"`
+	Planets           []planetDoc           `json:"planets"`
 	HomeStarTemplates []homeStarTemplateDoc `json:"home_star_templates,omitempty"`
 }
 
 type systemDoc struct {
-	ID    int       `json:"id"`
-	Q     int       `json:"q"`
-	R     int       `json:"r"`
-	Stars []starDoc `json:"stars"`
+	ID         int  `json:"id"`
+	Q          int  `json:"q"`
+	R          int  `json:"r"`
+	HomeSystem bool `json:"home_system"`
 }
 
 type starDoc struct {
-	ID         int         `json:"id"`
-	Kind       string      `json:"kind"`
-	Color      string      `json:"color"`
-	Size       int         `json:"size"`
-	NumPlanets int         `json:"num_planets"`
-	Planets    []planetDoc `json:"planets"`
+	ID         int    `json:"id"`
+	SystemID   int    `json:"system_id"`
+	Kind       string `json:"kind"`
+	Color      string `json:"color"`
+	Size       int    `json:"size"`
+	NumPlanets int    `json:"num_planets"`
 }
 
 type planetDoc struct {
+	ID               int      `json:"id"`
+	StarID           int      `json:"star_id"`
+	Orbit            int      `json:"orbit"`
 	Diameter         int      `json:"diameter"`
 	Density          float64  `json:"density"`
 	Gravity          float64  `json:"gravity"`
@@ -104,6 +109,8 @@ func buildClusterDoc(g *Cluster) clusterDoc {
 	out := clusterDoc{
 		Radius:  g.Radius,
 		Systems: make([]systemDoc, 0, len(g.Systems)),
+		Stars:   make([]starDoc, 0, len(g.Stars)),
+		Planets: make([]planetDoc, 0, len(g.Planets)),
 	}
 	for n := 3; n <= 9; n++ {
 		if n >= len(g.HomeStarTemplates) {
@@ -116,35 +123,36 @@ func buildClusterDoc(g *Cluster) clusterDoc {
 		out.HomeStarTemplates = append(out.HomeStarTemplates, buildHomeStarTemplateDoc(outcome))
 	}
 	for _, sys := range g.Systems {
-		sd := systemDoc{
-			ID:    sys.ID,
-			Q:     sys.Hex.Q,
-			R:     sys.Hex.R,
-			Stars: make([]starDoc, 0, len(sys.Stars)),
-		}
-		for _, star := range sys.Stars {
-			stard := starDoc{
-				ID:         star.ID,
-				Kind:       star.Kind.String(),
-				Color:      star.Color.String(),
-				Size:       star.Size,
-				NumPlanets: star.NumPlanets,
-				Planets:    make([]planetDoc, 0, len(star.Planets)),
-			}
-			for _, p := range star.Planets {
-				stard.Planets = append(stard.Planets, planetDoc{
-					Diameter:         p.Diameter,
-					Density:          p.Density,
-					Gravity:          p.Gravity,
-					TemperatureClass: p.TemperatureClass,
-					PressureClass:    p.PressureClass,
-					Atmosphere:       sortGasMap(p.Gases),
-					MiningDifficulty: p.MiningDifficulty,
-				})
-			}
-			sd.Stars = append(sd.Stars, stard)
-		}
-		out.Systems = append(out.Systems, sd)
+		out.Systems = append(out.Systems, systemDoc{
+			ID:         sys.ID,
+			Q:          sys.Hex.Q,
+			R:          sys.Hex.R,
+			HomeSystem: sys.HomeSystem,
+		})
+	}
+	for _, star := range g.Stars {
+		out.Stars = append(out.Stars, starDoc{
+			ID:         star.ID,
+			SystemID:   star.SystemID,
+			Kind:       star.Kind.String(),
+			Color:      star.Color.String(),
+			Size:       star.Size,
+			NumPlanets: star.NumPlanets,
+		})
+	}
+	for _, p := range g.Planets {
+		out.Planets = append(out.Planets, planetDoc{
+			ID:               p.ID,
+			StarID:           p.StarID,
+			Orbit:            p.Orbit,
+			Diameter:         p.Diameter,
+			Density:          p.Density,
+			Gravity:          p.Gravity,
+			TemperatureClass: p.TemperatureClass,
+			PressureClass:    p.PressureClass,
+			Atmosphere:       sortGasMap(p.Gases),
+			MiningDifficulty: p.MiningDifficulty,
+		})
 	}
 	return out
 }

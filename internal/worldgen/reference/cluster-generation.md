@@ -96,14 +96,28 @@ At most one field is true at a time.
 
 ## Type Definitions
 
+Cluster stores systems, stars, and planets as three parallel flat
+slices at the top level. Parent ownership is expressed via integer
+IDs — `Star.SystemID` and `Planet.StarID` — not via nested Go slices.
+This layout aligns with the eventual relational schema and makes
+staged generators (templates, deposits) trivially composable. See
+[`../staged-generator-plan.md`](../staged-generator-plan.md).
+
 ### Cluster
 
 ```
 Cluster {
-    Radius   int        // hex disk radius
-    Systems  []*System  // all star systems in the cluster
+    Radius            int                          // hex disk radius
+    Systems           []*System                    // all systems (placement-order)
+    Stars             []*Star                      // all stars (system-then-star order)
+    Planets           []*Planet                    // all planets (star-then-orbit order)
+    HomeStarTemplates []*HomeStarTemplateOutcome   // stage-1 library (length 10, 0..2 nil)
 }
 ```
+
+Cluster also exposes lookup helpers `StarsForSystem(sysID)`,
+`PlanetsForStar(starID)`, and `PlanetsForSystem(sysID)` which do
+linear scans — fine at worldgen scale.
 
 ### System
 
@@ -112,23 +126,25 @@ A system occupies a single hex and may contain **multiple stars**
 
 ```
 System {
+    ID         int      // stable sequential identifier
     Hex        Axial    // axial hex coordinates (Q, R)
-    Stars      []*Star  // one or more stars in this system
     HomeSystem bool     // true if this is a designated home system
 }
 ```
 
 ### Star
 
-Each star within a system has its own set of orbiting planets.
+Each star references its owning system by ID. Planets orbiting this
+star reference it via `Planet.StarID`.
 
 ```
 Star {
+    ID         int        // stable sequential identifier
+    SystemID   int        // owning System.ID
     Kind       StarType   // DWARF | DEGENERATE | MAIN_SEQUENCE | GIANT
     Color      StarColor  // BLUE through RED
     Size       int        // 0 through 9 inclusive
-    NumPlanets int        // 1 through 9 inclusive
-    Planets    []*Planet  // the planets orbiting this star
+    NumPlanets int        // 1 through 9 inclusive (matches count of owning planets)
 }
 ```
 
@@ -136,12 +152,15 @@ Star {
 
 ```
 Planet {
+    ID               int              // stable sequential identifier
+    StarID           int              // owning Star.ID
+    Orbit            int              // 1-based position from the star (1 = innermost)
     Diameter         int              // in thousands of kilometers
     Density          float64          // g/cm³ (Earth ≈ 5.5)
     Gravity          float64          // surface gravity in G's (Earth = 1.0)
     TemperatureClass int              // 1–30 (3–7 for gas giants)
     PressureClass    int              // 0–29
-    Special          struct {         // struct of bools
+    Special          struct {         // struct of bools; unused by the generator
         NotSpecial      bool
         IdealHomePlanet bool
         IdealColony     bool

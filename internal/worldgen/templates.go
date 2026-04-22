@@ -99,8 +99,8 @@ func (g *Generator) generateHomeStarTemplates(window ViabilityWindow, maxCandida
 
 	filled := 0
 	for rolls := 0; rolls < maxCandidateRolls && filled < 7; rolls++ {
-		candidate := g.rollStar()
-		n := len(candidate.Planets)
+		candidate, _ := g.rollStar()
+		n := candidate.NumPlanets
 		if n < 3 || n > 9 {
 			continue
 		}
@@ -108,7 +108,7 @@ func (g *Generator) generateHomeStarTemplates(window ViabilityWindow, maxCandida
 		if slot.Template != nil {
 			continue
 		}
-		template, score := generateHomeStarTemplateAttempt(g.r, candidate)
+		template, score := generateHomeStarTemplateAttempt(g.r, n)
 		slot.Attempts++
 		if score > slot.BestScore {
 			slot.BestScore = score
@@ -127,11 +127,10 @@ var startDiameter = [10]int{0, 5, 12, 13, 7, 20, 143, 121, 51, 49}
 var startTempClass = [10]int{0, 29, 27, 11, 9, 8, 6, 5, 5, 3}
 
 // generateHomeStarTemplateAttempt runs one template-generation attempt
-// for a star with len(star.Planets) planets. It always returns a non-nil
-// template and its computed viability score; acceptance is the caller's
-// job. See internal/worldgen/design/home-system-template-design.md.
-func generateHomeStarTemplateAttempt(r *prng.PRNG, star *Star) (*HomeStarTemplate, int) {
-	numPlanets := len(star.Planets)
+// for numPlanets planets. It always returns a non-nil template and its
+// computed viability score; acceptance is the caller's job. See
+// internal/worldgen/design/home-system-template-design.md.
+func generateHomeStarTemplateAttempt(r *prng.PRNG, numPlanets int) (*HomeStarTemplate, int) {
 	template := &HomeStarTemplate{
 		NumPlanets: numPlanets,
 		Planets:    make([]TemplatePlanet, 0, numPlanets),

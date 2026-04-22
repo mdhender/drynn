@@ -55,8 +55,8 @@ func runSimulate(opts simulateOpts) error {
 
 	fmt.Printf("generated %d systems (%d stars, %d planets) in radius-%d cluster\n",
 		len(cluster.Systems),
-		worldgen.TotalStars(cluster.Systems),
-		totalPlanets(cluster),
+		cluster.TotalStars(),
+		cluster.TotalPlanets(),
 		cluster.Radius,
 	)
 
@@ -101,14 +101,4 @@ func runSimulate(opts simulateOpts) error {
 	}
 
 	return nil
-}
-
-func totalPlanets(g *worldgen.Cluster) int {
-	total := 0
-	for _, sys := range g.Systems {
-		for _, star := range sys.Stars {
-			total += len(star.Planets)
-		}
-	}
-	return total
 }

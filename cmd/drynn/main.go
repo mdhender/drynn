@@ -240,12 +240,16 @@ func run(args []string) error {
 				}
 			}
 			fmt.Printf("placed %d systems (%d total stars, %d multi-star) in radius-%d disk\n",
-				len(cluster.Systems), worldgen.TotalStars(cluster.Systems), worldgen.CountMultiStar(cluster.Systems), *testHexRadius)
+				len(cluster.Systems), cluster.TotalStars(), cluster.CountMultiStarSystems(), *testHexRadius)
 
 			// Star-count breakdown.
+			starsBySys := make(map[int]int, len(cluster.Systems))
+			for _, star := range cluster.Stars {
+				starsBySys[star.SystemID]++
+			}
 			var one, two, three, four, fivePlus int
 			for _, s := range cluster.Systems {
-				switch len(s.Stars) {
+				switch starsBySys[s.ID] {
 				case 1:
 					one++
 				case 2:
@@ -391,15 +395,13 @@ func run(args []string) error {
 				}
 			}
 
-			totalStars, totalPlanets := 0, 0
+			starsBySys := make(map[int]int, len(cluster.Systems))
+			for _, star := range cluster.Stars {
+				starsBySys[star.SystemID]++
+			}
 			var one, two, three, four, fivePlus int
 			for _, s := range cluster.Systems {
-				n := len(s.Stars)
-				totalStars += n
-				for _, star := range s.Stars {
-					totalPlanets += len(star.Planets)
-				}
-				switch n {
+				switch starsBySys[s.ID] {
 				case 1:
 					one++
 				case 2:
@@ -413,7 +415,7 @@ func run(args []string) error {
 				}
 			}
 			fmt.Printf("generated %d systems (%d stars, %d planets) in radius-%d cluster\n",
-				len(cluster.Systems), totalStars, totalPlanets, cluster.Radius)
+				len(cluster.Systems), cluster.TotalStars(), cluster.TotalPlanets(), cluster.Radius)
 			fmt.Printf("  1-star: %d   2-star: %d   3-star: %d   4-star: %d   5+-star: %d\n",
 				one, two, three, four, fivePlus)
 

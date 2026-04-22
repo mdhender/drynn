@@ -331,7 +331,7 @@ return slots
 ### Match-Required Rule
 
 A `HomeStarTemplate` with `NumPlanets == N` may be applied only to a
-Star whose `len(star.Planets) == N`. Applying a template to a star
+Star whose `Star.NumPlanets == N`. Applying a template to a star
 with a different planet count is a programmer error — the applier
 rejects it.
 

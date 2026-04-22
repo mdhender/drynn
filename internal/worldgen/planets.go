@@ -3,6 +3,13 @@
 package worldgen
 
 type Planet struct {
+	// ID is a stable, sequential identifier assigned during Generate.
+	// StarID references the owning Star.ID. Orbit is the planet's
+	// 1-based position from the star (1 = innermost).
+	ID     int
+	StarID int
+	Orbit  int
+
 	Diameter         int     // thousands of km
 	Density          float64 // earth ~= 5.5
 	Gravity          float64 // in G's; earth = 1.0

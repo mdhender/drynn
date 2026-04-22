@@ -34,19 +34,23 @@ func Generate(options ...Option) (*Cluster, error) {
 		Radius:  g.desiredRadius,
 		Systems: make([]*System, 0, len(placements)),
 	}
-	nextSystemID, nextStarID := 1, 1
+	nextSystemID, nextStarID, nextPlanetID := 1, 1, 1
 	for _, p := range placements {
-		sys := &System{
-			ID:    nextSystemID,
-			Hex:   p.Hex,
-			Stars: make([]*Star, 0, p.Stars),
-		}
+		sys := &System{ID: nextSystemID, Hex: p.Hex}
 		nextSystemID++
 		for i := 0; i < p.Stars; i++ {
-			star := g.rollStar()
+			star, planets := g.rollStar()
 			star.ID = nextStarID
+			star.SystemID = sys.ID
 			nextStarID++
-			sys.Stars = append(sys.Stars, star)
+			for orbit, planet := range planets {
+				planet.ID = nextPlanetID
+				planet.StarID = star.ID
+				planet.Orbit = orbit + 1
+				nextPlanetID++
+				cluster.Planets = append(cluster.Planets, planet)
+			}
+			cluster.Stars = append(cluster.Stars, star)
 		}
 		cluster.Systems = append(cluster.Systems, sys)
 	}
@@ -55,7 +59,10 @@ func Generate(options ...Option) (*Cluster, error) {
 	return cluster, nil
 }
 
-func (g *Generator) rollStar() *Star {
+// rollStar rolls a fresh star and the planets orbiting it. ID, SystemID,
+// and per-planet ID/StarID/Orbit are stamped by the caller; rollStar only
+// populates the physical attributes.
+func (g *Generator) rollStar() (*Star, []*Planet) {
 	star := &Star{}
 
 	// determine star type randomly
@@ -141,14 +148,15 @@ func (g *Generator) rollStar() *Star {
 		star.NumPlanets -= g.r.Roll(1, 3)
 	}
 
+	planets := make([]*Planet, 0, star.NumPlanets)
 	var previousPlanet *Planet
 	for orbit := 1; orbit <= star.NumPlanets; orbit++ {
 		p := g.rollPlanet(star, orbit, previousPlanet)
-		star.Planets = append(star.Planets, p)
+		planets = append(planets, p)
 		previousPlanet = p
 	}
 
-	return star
+	return star, planets
 }
 
 // rollPlanet generates a single planet at the given orbit around star.

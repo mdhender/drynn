@@ -4,15 +4,17 @@ package worldgen
 
 type Star struct {
 	// ID is a stable, sequential identifier assigned during Generate.
-	// It exists to give callers (e.g. home-system template generation)
-	// a deterministic sort key. It is not persisted to the database.
-	ID    int
-	Kind  StarType
-	Color StarColor
-	Size  int // 0..9
+	// SystemID references the owning System.ID. Planets that belong
+	// to this star reference it via Planet.StarID.
+	ID       int
+	SystemID int
+	Kind     StarType
+	Color    StarColor
+	Size     int // 0..9
 
+	// NumPlanets is set at roll time from the star's type/color and
+	// matches the count of Planets with StarID == this.ID.
 	NumPlanets int // 1..9
-	Planets    []*Planet
 }
 
 type StarType int

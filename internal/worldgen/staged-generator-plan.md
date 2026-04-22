@@ -47,34 +47,35 @@ the staged code lands under the final names.
 
 ## 3. Generator / Cluster shape refactor
 
-- [ ] Split the `Generator`'s single PRNG into one substream per stage: `rngTemplates`, `rngPlacement`, `rngStars`, `rngDeposits`. Each stage accepts its own seed; default substreams are derived from a master seed.
-- [ ] Add `Cluster.HomeStarTemplates` — indexed by planet count (3..9). Each slot holds a richer outcome (template pointer, attempts made, best score seen, seed used) so GM review UIs can show something when a slot is NULL.
-- [ ] Split public entry points to reflect the staged API:
-  - `GenerateHomeStarTemplates(seed, window) ([10]*HomeStarTemplateOutcome, error)`
-  - `GenerateCluster(seed, templates) (*Cluster, error)`
-  - `GenerateDeposits(seed, cluster) error` (mutates cluster)
-- [ ] Retain a single `Generate(options...)` convenience wrapper for tests and simple CLI invocations that walks all stages with default seeds.
+- [ ] Split the `Generator`'s single PRNG into one substream per stage: `rngTemplates`, `rngPlacement`, `rngStars`, `rngDeposits`. Use `prng.PRNG.Split()` to derive substreams from a master seed; each stage also accepts its own seed override.
+- [x] Add `Cluster.HomeStarTemplates` — slice of length 10 indexed by planet count (3..9). Each slot is a `HomeStarTemplateOutcome` with `Attempts`, `BestScore`, and (possibly nil) `Template`. `AcceptedSeed` will be added when PRNG substreams land.
+- [x] Flatten `Cluster` into parallel `Systems`, `Stars`, `Planets` slices with `SystemID`/`StarID` references. `rollStar` returns `(*Star, []*Planet)`; `Generate` stamps IDs and appends. Viewers/JSON/CLI precompute `map[ParentID][]Child` for efficient per-parent access.
+- [ ] Split public entry points to reflect the staged API. Per the agreed design (2026-04-22), templates are **not** an input to cluster generation — they're produced in stage 1 and attached to the cluster as a stored library for later empire-assignment use.
+  - `GenerateHomeStarTemplates(rng, window, maxRolls) []*HomeStarTemplateOutcome` — already public.
+  - `GenerateCluster(rng, placementOpts) *Cluster` — systems, stars, planets.
+  - `GenerateDeposits(rng, cluster)` — mutates `cluster.Deposits` and/or per-planet deposit fields (design deferred).
+- [ ] Retain a single `Generate(options...)` convenience wrapper for tests and simple CLI invocations. Internally it splits the master PRNG into stage substreams and runs stages in order, attaching templates to the cluster.
 
 ## 4. Stage-1 implementation (single shared-candidate loop)
 
-- [ ] Replace `GenerateHomeStarTemplateUntilViable` with a driver that:
-  - Uses its own PRNG substream.
+- [x] Replace `GenerateHomeStarTemplateUntilViable` with a driver that:
+  - Uses its own PRNG substream (currently shares the cluster generator's PRNG; substream plumbing pending).
   - Rolls a candidate star via existing `rollStar` (unchanged).
   - If the candidate's planet count N ∈ [3, 9] and slot N is empty, runs `generateHomeStarTemplateAttempt` on it. On viable score, fills slot N.
   - If slot N is already filled (or N is out of range), discards the candidate and continues.
   - Terminates when either all 7 slots are filled or the candidate-roll count reaches 10,000.
-- [ ] Record per-slot metadata: attempts made, best score seen, seed used at slot acceptance.
-- [ ] Emit NULL slots (no template) for budget-exhausted counts; the GM review UI decides whether to accept or re-seed.
-- [ ] Drive viability window from the config/option passed in (default `(53, 57)` preserves current behavior). Single window applied across all planet counts.
+- [x] Record per-slot metadata: `Attempts`, `BestScore`. `AcceptedSeed` deferred until substreams land.
+- [x] Emit NULL slots (no template) for budget-exhausted counts; the GM review UI decides whether to accept or re-seed.
+- [x] Drive viability window from the config/option passed in (default `(53, 57)` preserves current behavior). Single window applied across all planet counts.
 
 ## 5. Stage-2 cleanup
 
-- [ ] In `placement.go`, replace the `placements[idx].Stars = rng.Roll(2, 5)` re-roll with a hard cap: merge is `min(Stars+1, 5)`. No more Roll(2, 5) dampener.
+- [x] In `placement.go`, replace the `placements[idx].Stars = rng.Roll(2, 5)` re-roll with a hard cap: merge is `min(Stars+1, 5)`. No more Roll(2, 5) dampener.
 
 ## 6. CLI update
 
-- [ ] `cmd/drynn simulate` walks the staged entry points in order, accepting defaults for each.
-- [ ] JSON state output (`jsonstate.go`) reflects the renamed types and per-slot metadata. Preserve determinism for golden-file tests.
+- [ ] `cmd/drynn simulate` walks the staged entry points in order, accepting defaults for each. (Partial: already consumes `cluster.HomeStarTemplates`.)
+- [x] JSON state output (`jsonstate.go`) reflects the flat cluster shape: three top-level slices (`systems`, `stars`, `planets`) with `system_id`/`star_id` references, plus `home_star_templates` with per-slot metadata.
 
 ## 7. Stage-4 deposits
 

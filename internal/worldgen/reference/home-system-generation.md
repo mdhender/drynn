@@ -152,7 +152,7 @@ Summary:
 ### Match-Required Rule
 
 A template generated for `n` planets may be applied **only** to a star
-whose `len(star.Planets) == n`. A slot that finishes stage 1 as `nil`
+whose `Star.NumPlanets == n` (equivalently `len(cluster.PlanetsForStar(star.ID)) == n`). A slot that finishes stage 1 as `nil`
 (the budget was exhausted before a viable score landed) makes every
 star of that planet count permanently ineligible to become a home
 system for this cluster. This is authentic but worth surfacing in the

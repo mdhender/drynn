@@ -114,22 +114,10 @@ func nearestPlacementWithinDistance(rng *prng.PRNG, placements []hexPlacement, c
 	return tied[rng.Roll(0, len(tied)-1)]
 }
 
-// TotalStars returns the total number of stars across all systems.
-func TotalStars(systems []*System) int {
-	total := 0
-	for _, s := range systems {
-		total += len(s.Stars)
-	}
-	return total
-}
+// TotalStars returns the total number of stars across all systems of a
+// cluster. Prefer Cluster.TotalStars() when you have a *Cluster.
+func TotalStars(cluster *Cluster) int { return cluster.TotalStars() }
 
-// CountMultiStar returns the number of systems containing more than one star.
-func CountMultiStar(systems []*System) int {
-	total := 0
-	for _, s := range systems {
-		if len(s.Stars) > 1 {
-			total++
-		}
-	}
-	return total
-}
+// CountMultiStar returns the number of systems containing more than one
+// star. Prefer Cluster.CountMultiStarSystems() when you have a *Cluster.
+func CountMultiStar(cluster *Cluster) int { return cluster.CountMultiStarSystems() }

@@ -13,9 +13,13 @@ import (
 // If showPlanets is true, a per-system planet report is appended below the
 // map. If pixelSize <= 0, a size is derived to fit within roughly 1280x1280.
 func (g *Cluster) ToHTML(pixelSize float64, showCoords, showPlanets bool) []byte {
+	starCounts := make(map[int]int, len(g.Systems))
+	for _, s := range g.Stars {
+		starCounts[s.SystemID]++
+	}
 	systems := make([]viewerSystem, 0, len(g.Systems))
 	for _, s := range g.Systems {
-		systems = append(systems, viewerSystem{Hex: s.Hex, Stars: len(s.Stars)})
+		systems = append(systems, viewerSystem{Hex: s.Hex, Stars: starCounts[s.ID]})
 	}
 
 	var buf bytes.Buffer
@@ -51,21 +55,31 @@ body{margin:0;background:#f6f6f7;font-family:system-ui,sans-serif;color:#222}
 `
 
 func writePlanetReport(buf *bytes.Buffer, g *Cluster) {
+	starsBySys := make(map[int][]*Star, len(g.Systems))
+	for _, s := range g.Stars {
+		starsBySys[s.SystemID] = append(starsBySys[s.SystemID], s)
+	}
+	planetsByStar := make(map[int][]*Planet, len(g.Stars))
+	for _, p := range g.Planets {
+		planetsByStar[p.StarID] = append(planetsByStar[p.StarID], p)
+	}
+
 	fmt.Fprintln(buf, `<section class="report">`)
 	fmt.Fprintln(buf, `<h1>Planet Report</h1>`)
 	for _, sys := range g.Systems {
 		fmt.Fprintf(buf, "<h2>System %d,%d</h2>\n", sys.Hex.Q, sys.Hex.R)
-		for i, star := range sys.Stars {
+		for i, star := range starsBySys[sys.ID] {
 			fmt.Fprintf(buf, "<h3>Star %d — %s %s, size %d</h3>\n",
 				i+1, star.Kind, star.Color, star.Size)
-			if len(star.Planets) == 0 {
+			planets := planetsByStar[star.ID]
+			if len(planets) == 0 {
 				fmt.Fprintln(buf, `<p class="empty">No planets.</p>`)
 				continue
 			}
 			fmt.Fprintln(buf, `<table><thead><tr><th>Orbit</th><th>Diameter (km)</th><th>Density</th><th>Gravity (g)</th><th>Temp</th><th>Pressure</th><th>Atmosphere</th><th>Mining</th></tr></thead><tbody>`)
-			for orbit, p := range star.Planets {
+			for _, p := range planets {
 				fmt.Fprintf(buf, "<tr><td>%d</td><td>%d</td><td>%.2f</td><td>%.2f</td><td>%d</td><td>%d</td><td>%s</td><td>%.0f</td></tr>\n",
-					orbit+1, p.Diameter*1000, p.Density, p.Gravity,
+					p.Orbit, p.Diameter*1000, p.Density, p.Gravity,
 					p.TemperatureClass, p.PressureClass,
 					gasMixLabel(p.Gases), p.MiningDifficulty)
 			}
