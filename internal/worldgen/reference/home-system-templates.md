@@ -45,6 +45,34 @@ This gives every race a roughly equal start while still feeling unique.
 3. **Gameplay** — Templates are not used again after race creation.
    The planet data lives in the database from that point on.
 
+Template generation is **stage 1** of the worldgen pipeline; see the
+[Stage-1 Driver](#stage-1-driver-template-library-generation) section
+below for the driver loop that wraps this lifecycle and produces the
+full seven-slot library.
+
+## Vocabulary
+
+drynn is standardizing its worldgen vocabulary. Conventions in force
+as of 2026-04-22:
+
+- **Cluster** is preferred over "galaxy" in new documentation. The Go
+  type `Galaxy` is scheduled for a rename to `Cluster`; this doc will
+  be retitled and updated once the rename lands. Both names refer to
+  the same artifact until then.
+- **System** and **Star** are distinct. A System is a hex location
+  that contains one or more Stars. Templates described here are
+  **star-scoped**: they describe the planets orbiting one star, not
+  a whole multi-star system.
+- **Planets belong to Stars**, not Systems. The ownership chain is
+  `System → []*Star → []*Planet`.
+- **Home-star template** is the preferred prose form. The Go type
+  `HomeSystemTemplate` is scheduled for a rename to `HomeStarTemplate`;
+  new content in this doc uses the new name, older content still uses
+  the old name until the rename pass lands.
+
+Rename and staged-refactor tracking lives in
+[`../staged-generator-plan.md`](../staged-generator-plan.md).
+
 ## Scope and Non-Goals
 
 - **Scope:** deterministic, side-effect-free generation of a
@@ -198,6 +226,138 @@ template is applied to a star's `[]*Planet`, the applier propagates
 
 `System.HomeSystem` is the system-level flag; the caller sets it after
 a successful apply.
+
+## Stage-1 Driver: Template Library Generation
+
+Template generation is **stage 1** of the worldgen pipeline. Its
+output is a library of up to seven home-star templates — one per
+planet count in `[3, 9]` — keyed by planet count and stored on the
+`Cluster` (née `Galaxy`). The driver orchestrates many single-attempt
+Function 1 calls against ephemeral candidate stars; Function 1 itself
+remains the single-attempt building block.
+
+### Inputs
+
+- `rng` — a PRNG substream dedicated to stage 1. The caller derives
+  this from a master seed; stage 2 (cluster placement) and later
+  stages each receive their own substream. GM input is a single
+  stage-1 seed; re-seeding stage 1 does not perturb later stages.
+- `viabilityWindow` — a `(min, max)` pair, exclusive on both ends,
+  applied uniformly to every planet count. Default `(53, 57)`
+  preserves current behavior. Acts as a difficulty knob: narrow
+  windows produce harder starts; shifted windows move the floor or
+  ceiling. See
+  [`../design/home-system-template-design.md` Addendum A](../design/home-system-template-design.md#addendum-a--the-viability-window-as-a-difficulty-knob)
+  for tuning detail. A single window across all counts is an explicit
+  choice — per-planet-count windows are deliberately deferred.
+- `maxCandidateRolls` — the runtime budget, counted in candidate-star
+  rolls. Default `10_000`. Counts every candidate the driver rolls,
+  including those discarded because the matching slot is already
+  filled or because the candidate has fewer than 3 or more than 9
+  planets. This does **not** bound RNG-call consumption inside
+  `rollStar` / `rollPlanet` / the single-attempt template function —
+  those retain their random-increment clamp loops by design (see
+  [`../burndown.md`](../burndown.md) items 8 and 9).
+
+### Output
+
+```go
+type HomeStarTemplateOutcome struct {
+    NumPlanets   int                // 3..9
+    Template     *HomeStarTemplate  // nil when the slot was not filled
+    Attempts     int                // template-generation calls against matching candidates
+    BestScore    int                // highest viability score seen while attempting
+    AcceptedSeed uint64             // stage-1 PRNG snapshot when the slot was filled (0 if nil)
+}
+```
+
+The driver returns one `HomeStarTemplateOutcome` per planet count in
+`[3, 9]` — conceptually indexed by planet count with indexes 0..2
+unused. A NULL slot (`Template == nil`) is a valid, expected outcome:
+it records that the candidate budget was exhausted before a viable
+template landed for that planet count. The GM's review step decides
+whether to accept the cluster with the NULL slot or re-seed stage 1.
+
+### Algorithm
+
+```
+slots := empty map[int]*HomeStarTemplateOutcome, one per planet count in [3..9]
+for rolls := 0; rolls < maxCandidateRolls; rolls++ {
+    candidate := rollStar(rng)          // existing generator, unchanged
+    n := len(candidate.Planets)
+    if n < 3 || n > 9 {
+        continue                        // candidate outside the template range
+    }
+    slot := slots[n]
+    if slot.Template != nil {
+        continue                        // this slot is already filled
+    }
+    template, score := generateHomeStarTemplateAttempt(rng, candidate)
+    slot.Attempts++
+    if score > slot.BestScore {
+        slot.BestScore = score
+    }
+    if viabilityWindow.Accepts(score) {
+        slot.Template = template
+        slot.AcceptedSeed = rng.Snapshot()
+        if allSlotsFilled(slots) {
+            break
+        }
+    }
+}
+return slots
+```
+
+### Properties and Trade-offs
+
+- The driver uses `rollStar` unchanged. Stage 1 consumes galaxy-wide
+  planet generation; it does not modify it. Planet-count distribution
+  over the candidate stream therefore matches the natural distribution
+  that later stages will produce in the cluster.
+- Ephemeral candidate stars are **not** persisted. They have no
+  `SourceStarID` propagated into the output. The `HomeStarTemplate`
+  describes the planets alone. Callers that used to rely on
+  `SourceStarID` should migrate away from it — the field is being
+  removed.
+- "Slot already filled" candidates are **counted** against
+  `maxCandidateRolls`. This bounds runtime predictably. The trade-off
+  is that rare planet counts may remain NULL when common counts
+  dominate the candidate stream — which is treated as an authentic
+  reflection of "this seed doesn't naturally produce such systems."
+- If `viabilityWindow` is very narrow relative to the natural score
+  distribution, expect more NULL slots. The GM UI should surface
+  `Attempts` and `BestScore` per slot so the GM can decide whether to
+  relax the window, re-seed, or accept as-is.
+
+### Match-Required Rule
+
+A `HomeStarTemplate` with `NumPlanets == N` may be applied only to a
+Star whose `len(star.Planets) == N`. Applying a template to a star
+with a different planet count is a programmer error — the applier
+rejects it.
+
+Consequences that propagate out of stage 1:
+
+- A NULL slot at planet count N means **no** star with N planets in
+  the generated cluster can ever receive a home world at
+  empire-assignment time. The cluster is still usable, but the
+  N-planet stars in it are permanently ineligible as home stars.
+- The GM review UI should surface, for each planet count, the slot
+  status (filled/NULL), the attempt count, the best score seen, and
+  how many stars in the generated cluster have that planet count.
+  This is what lets the GM make an informed accept-or-re-seed choice
+  before stage 2 runs. (Stage 2 runs independently; re-seeding stage
+  1 does not require re-running later stages.)
+
+### Relationship to Function 1
+
+Function 1 (currently `GenerateHomeSystemTemplate`; forthcoming
+`GenerateHomeStarTemplateAttempt`) is the single-attempt building
+block: one star, one call, one `(*Template, score)` result. The
+stage-1 driver is the loop that feeds it candidates and gates
+acceptance on the viability window. The per-planet generation steps
+described in the Function 1 section below remain authoritative and
+are unchanged by the staged-driver design.
 
 ## Function 1 — Generate a Home System Template
 

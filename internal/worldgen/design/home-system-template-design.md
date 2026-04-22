@@ -2,9 +2,21 @@
 
 > **DRAFT — working document.** Copied from a prior engine. Not ready
 > for use by coding agents. Terminology, data structures, and unit
-> conventions have not been reconciled with drynn. For the
-> drynn-native specification, see
+> conventions have not been reconciled with drynn.
+>
+> For the drynn-native specification of the template subsystem and
+> the stage-1 driver, see
 > [`../reference/home-system-templates.md`](../reference/home-system-templates.md).
+> For the ongoing staged-generator refactor plan (vocabulary renames,
+> stage boundaries, PRNG substreams), see
+> [`../staged-generator-plan.md`](../staged-generator-plan.md).
+>
+> **Authoritative content in this document:** the per-planet
+> generation steps (1a–1k) and the viability-window tuning discussion
+> (Addendum A) remain valid and are referenced from the drynn-native
+> reference. The single-attempt "loop until viable" wrapper described
+> under Function 1 is **superseded** by the stage-1 driver — see the
+> reference doc for the canonical driver.
 
 This document describes the design for generating and applying home system
 templates in the next-generation Far Horizons engine. It is intended for the
