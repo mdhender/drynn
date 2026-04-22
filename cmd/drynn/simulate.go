@@ -21,11 +21,11 @@ type simulateOpts struct {
 	jsonPath    string
 }
 
-// runSimulate simulates the GM's interactive workflow: generate a galaxy,
-// write galaxy.html, then produce a home-system template for each planet
+// runSimulate simulates the GM's interactive workflow: generate a cluster,
+// write cluster.html, then produce a home-system template for each planet
 // count 3..9 and write home-system-{N}.html. When --json is set, the full
 // run state is also written to a deterministic JSON file suitable for
-// golden file tests. The same PRNG stream is threaded through galaxy and
+// golden file tests. The same PRNG stream is threaded through cluster and
 // template generation so the full run is reproducible from the seeds.
 func runSimulate(opts simulateOpts) error {
 	seed1, seed2 := opts.seed1, opts.seed2
@@ -40,7 +40,7 @@ func runSimulate(opts simulateOpts) error {
 
 	rng := prng.NewFromSeed(seed1, seed2)
 
-	galaxy, err := worldgen.Generate(
+	cluster, err := worldgen.Generate(
 		worldgen.WithDesiredRadius(opts.radius),
 		worldgen.WithDesiredNumberOfSystems(opts.systems),
 		worldgen.WithMinimumDistance(opts.minDistance),
@@ -49,28 +49,28 @@ func runSimulate(opts simulateOpts) error {
 	)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "warning: %v\n", err)
-		if galaxy == nil {
+		if cluster == nil {
 			return err
 		}
 	}
 
-	fmt.Printf("generated %d systems (%d stars, %d planets) in radius-%d galaxy\n",
-		len(galaxy.Systems),
-		worldgen.TotalStars(galaxy.Systems),
-		totalPlanets(galaxy),
-		galaxy.Radius,
+	fmt.Printf("generated %d systems (%d stars, %d planets) in radius-%d cluster\n",
+		len(cluster.Systems),
+		worldgen.TotalStars(cluster.Systems),
+		totalPlanets(cluster),
+		cluster.Radius,
 	)
 
-	galaxyPath := filepath.Join(opts.outDir, "galaxy.html")
-	if err := os.WriteFile(galaxyPath, galaxy.ToHTML(0, false, true), 0o644); err != nil {
-		return fmt.Errorf("write galaxy.html: %w", err)
+	clusterPath := filepath.Join(opts.outDir, "cluster.html")
+	if err := os.WriteFile(clusterPath, cluster.ToHTML(0, false, true), 0o644); err != nil {
+		return fmt.Errorf("write cluster.html: %w", err)
 	}
-	fmt.Printf("wrote %s\n", galaxyPath)
+	fmt.Printf("wrote %s\n", clusterPath)
 
 	outcomes := make([]worldgen.TemplateOutcome, 0, 7)
 	for n := 3; n <= 9; n++ {
-		candidates := starsWithPlanetCount(galaxy, n)
-		template := worldgen.GenerateHomeSystemTemplate(rng, galaxy, n)
+		candidates := starsWithPlanetCount(cluster, n)
+		template := worldgen.GenerateHomeSystemTemplate(rng, cluster, n)
 		outcomes = append(outcomes, worldgen.TemplateOutcome{
 			NumPlanets:     n,
 			CandidateCount: len(candidates),
@@ -97,7 +97,7 @@ func runSimulate(opts simulateOpts) error {
 		body, err := worldgen.MarshalSimulationJSON(worldgen.SimulationOutcome{
 			Seed1:     seed1,
 			Seed2:     seed2,
-			Galaxy:    galaxy,
+			Cluster:   cluster,
 			Templates: outcomes,
 		})
 		if err != nil {
@@ -112,7 +112,7 @@ func runSimulate(opts simulateOpts) error {
 	return nil
 }
 
-func starsWithPlanetCount(g *worldgen.Galaxy, n int) []*worldgen.Star {
+func starsWithPlanetCount(g *worldgen.Cluster, n int) []*worldgen.Star {
 	var out []*worldgen.Star
 	for _, sys := range g.Systems {
 		for _, star := range sys.Stars {
@@ -124,7 +124,7 @@ func starsWithPlanetCount(g *worldgen.Galaxy, n int) []*worldgen.Star {
 	return out
 }
 
-func totalPlanets(g *worldgen.Galaxy) int {
+func totalPlanets(g *worldgen.Cluster) int {
 	total := 0
 	for _, sys := range g.Systems {
 		for _, star := range sys.Stars {

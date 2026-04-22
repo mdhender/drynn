@@ -40,23 +40,23 @@ type HomeSystemTemplate struct {
 	SourceStarID   int
 }
 
-// GenerateHomeSystemTemplate picks a star from galaxy that has numPlanets
+// GenerateHomeSystemTemplate picks a star from cluster that has numPlanets
 // planets, then returns the first viable home-system template produced by
 // GenerateHomeSystemTemplateUntilViable. Returns nil if no matching star
 // yields a viable template.
-func GenerateHomeSystemTemplate(r *prng.PRNG, galaxy *Galaxy, numPlanets int) *HomeSystemTemplate {
-	return GenerateHomeSystemTemplateUntilViable(r, galaxy, numPlanets)
+func GenerateHomeSystemTemplate(r *prng.PRNG, cluster *Cluster, numPlanets int) *HomeSystemTemplate {
+	return GenerateHomeSystemTemplateUntilViable(r, cluster, numPlanets)
 }
 
-// GenerateHomeSystemTemplateUntilViable collects every star in galaxy with
+// GenerateHomeSystemTemplateUntilViable collects every star in cluster with
 // exactly numPlanets planets, sorts them by Star.ID for determinism, and
 // runs one template-generation attempt per star using the shared PRNG.
 // It returns the first template whose viability score falls in the
 // exclusive window (53, 57), or nil if the star slice is exhausted first.
 //
 // The star slice also bounds the attempt count — there is no separate cap.
-func GenerateHomeSystemTemplateUntilViable(r *prng.PRNG, galaxy *Galaxy, numPlanets int) *HomeSystemTemplate {
-	candidates := collectStarsWithPlanetCount(galaxy, numPlanets)
+func GenerateHomeSystemTemplateUntilViable(r *prng.PRNG, cluster *Cluster, numPlanets int) *HomeSystemTemplate {
+	candidates := collectStarsWithPlanetCount(cluster, numPlanets)
 	for _, star := range candidates {
 		template, score := generateHomeSystemTemplateAttempt(r, star)
 		if score > 53 && score < 57 {
@@ -66,9 +66,9 @@ func GenerateHomeSystemTemplateUntilViable(r *prng.PRNG, galaxy *Galaxy, numPlan
 	return nil
 }
 
-func collectStarsWithPlanetCount(galaxy *Galaxy, numPlanets int) []*Star {
+func collectStarsWithPlanetCount(cluster *Cluster, numPlanets int) []*Star {
 	var stars []*Star
-	for _, sys := range galaxy.Systems {
+	for _, sys := range cluster.Systems {
 		for _, star := range sys.Stars {
 			if len(star.Planets) == numPlanets {
 				stars = append(stars, star)

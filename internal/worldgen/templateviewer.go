@@ -9,13 +9,13 @@ import (
 )
 
 // ToHTML renders a self-contained HTML page describing a single home-system
-// template. Layout mirrors the per-system section of Galaxy.ToHTML so both
+// template. Layout mirrors the per-system section of Cluster.ToHTML so both
 // reports feel like the same document family.
 func (t *HomeSystemTemplate) ToHTML() []byte {
 	var buf bytes.Buffer
 	buf.WriteString("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n")
 	fmt.Fprintf(&buf, "<meta charset=\"UTF-8\">\n<title>Home System Template (%d planets)</title>\n", t.NumPlanets)
-	buf.WriteString(galaxyPageCSS)
+	buf.WriteString(clusterPageCSS)
 	buf.WriteString("</head>\n<body>\n")
 
 	fmt.Fprintln(&buf, `<section class="report">`)
@@ -53,13 +53,13 @@ func (t *HomeSystemTemplate) ToHTML() []byte {
 
 // HomeSystemTemplateUnavailableHTML renders a report explaining that no
 // viable template could be produced for the requested planet count. This
-// keeps the simulation's output complete even when the galaxy does not
+// keeps the simulation's output complete even when the cluster does not
 // happen to yield a candidate.
 func HomeSystemTemplateUnavailableHTML(numPlanets, candidateCount int) []byte {
 	var buf bytes.Buffer
 	buf.WriteString("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n")
 	fmt.Fprintf(&buf, "<meta charset=\"UTF-8\">\n<title>Home System Template (%d planets) — unavailable</title>\n", numPlanets)
-	buf.WriteString(galaxyPageCSS)
+	buf.WriteString(clusterPageCSS)
 	buf.WriteString("</head>\n<body>\n")
 
 	fmt.Fprintln(&buf, `<section class="report">`)

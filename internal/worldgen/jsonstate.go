@@ -8,13 +8,13 @@ import (
 )
 
 // SimulationOutcome bundles everything a simulation run produces: the
-// seeds that drove the PRNG, the generated galaxy, and one entry per
+// seeds that drove the PRNG, the generated cluster, and one entry per
 // requested home-system template size. It is the canonical state that
 // the CLI's --json flag serializes.
 type SimulationOutcome struct {
 	Seed1     uint64
 	Seed2     uint64
-	Galaxy    *Galaxy
+	Cluster   *Cluster
 	Templates []TemplateOutcome
 }
 
@@ -41,11 +41,11 @@ func MarshalSimulationJSON(s SimulationOutcome) ([]byte, error) {
 type stateDoc struct {
 	Seed1     uint64        `json:"seed1"`
 	Seed2     uint64        `json:"seed2"`
-	Galaxy    galaxyDoc     `json:"galaxy"`
+	Cluster   clusterDoc    `json:"cluster"`
 	Templates []templateDoc `json:"templates"`
 }
 
-type galaxyDoc struct {
+type clusterDoc struct {
 	Radius  int         `json:"radius"`
 	Systems []systemDoc `json:"systems"`
 }
@@ -106,8 +106,8 @@ func buildStateDoc(s SimulationOutcome) stateDoc {
 		Seed2:     s.Seed2,
 		Templates: make([]templateDoc, 0, len(s.Templates)),
 	}
-	if s.Galaxy != nil {
-		doc.Galaxy = buildGalaxyDoc(s.Galaxy)
+	if s.Cluster != nil {
+		doc.Cluster = buildClusterDoc(s.Cluster)
 	}
 	for _, outcome := range s.Templates {
 		doc.Templates = append(doc.Templates, buildTemplateDoc(outcome))
@@ -115,8 +115,8 @@ func buildStateDoc(s SimulationOutcome) stateDoc {
 	return doc
 }
 
-func buildGalaxyDoc(g *Galaxy) galaxyDoc {
-	out := galaxyDoc{
+func buildClusterDoc(g *Cluster) clusterDoc {
+	out := clusterDoc{
 		Radius:  g.Radius,
 		Systems: make([]systemDoc, 0, len(g.Systems)),
 	}

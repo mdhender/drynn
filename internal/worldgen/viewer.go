@@ -9,10 +9,10 @@ import (
 	"strings"
 )
 
-// ToHTML renders a self-contained HTML page showing the galaxy's hex map.
+// ToHTML renders a self-contained HTML page showing the cluster's hex map.
 // If showPlanets is true, a per-system planet report is appended below the
 // map. If pixelSize <= 0, a size is derived to fit within roughly 1280x1280.
-func (g *Galaxy) ToHTML(pixelSize float64, showCoords, showPlanets bool) []byte {
+func (g *Cluster) ToHTML(pixelSize float64, showCoords, showPlanets bool) []byte {
 	systems := make([]viewerSystem, 0, len(g.Systems))
 	for _, s := range g.Systems {
 		systems = append(systems, viewerSystem{Hex: s.Hex, Stars: len(s.Stars)})
@@ -20,8 +20,8 @@ func (g *Galaxy) ToHTML(pixelSize float64, showCoords, showPlanets bool) []byte 
 
 	var buf bytes.Buffer
 	buf.WriteString("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n")
-	buf.WriteString("<meta charset=\"UTF-8\">\n<title>Galaxy</title>\n")
-	buf.WriteString(galaxyPageCSS)
+	buf.WriteString("<meta charset=\"UTF-8\">\n<title>Cluster</title>\n")
+	buf.WriteString(clusterPageCSS)
 	buf.WriteString("</head>\n<body>\n")
 
 	buf.WriteString("<div class=\"map\">\n")
@@ -36,7 +36,7 @@ func (g *Galaxy) ToHTML(pixelSize float64, showCoords, showPlanets bool) []byte 
 	return buf.Bytes()
 }
 
-const galaxyPageCSS = `<style>
+const clusterPageCSS = `<style>
 body{margin:0;background:#f6f6f7;font-family:system-ui,sans-serif;color:#222}
 .map{display:flex;justify-content:center;padding:24px}
 .report{max-width:960px;margin:0 auto;padding:0 24px 48px}
@@ -50,7 +50,7 @@ body{margin:0;background:#f6f6f7;font-family:system-ui,sans-serif;color:#222}
 </style>
 `
 
-func writePlanetReport(buf *bytes.Buffer, g *Galaxy) {
+func writePlanetReport(buf *bytes.Buffer, g *Cluster) {
 	fmt.Fprintln(buf, `<section class="report">`)
 	fmt.Fprintln(buf, `<h1>Planet Report</h1>`)
 	for _, sys := range g.Systems {

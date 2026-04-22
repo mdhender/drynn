@@ -107,12 +107,12 @@ drynn test-hexmap [flags]
 
 Writes `hexmap.html` under `--out` and prints placement statistics (system count, star breakdown, pairwise and nearest-neighbor distances).
 
-## test-galaxy
+## test-cluster
 
-Generates a full galaxy (hex map + stars + planets) using `internal/worldgen` and optionally writes a self-contained HTML page. Local diagnostic; does not contact the server.
+Generates a full cluster (hex map + stars + planets) using `internal/worldgen` and optionally writes a self-contained HTML page. Local diagnostic; does not contact the server.
 
 ```
-drynn test-galaxy [flags]
+drynn test-cluster [flags]
 ```
 
 | Flag                 | Default | Description                                                 |
@@ -124,17 +124,17 @@ drynn test-galaxy [flags]
 | `--seed1`            | `20`    | PRNG seed value 1                                           |
 | `--seed2`            | `20`    | PRNG seed value 2                                           |
 | `--use-random-seeds` | *(off)* | Use random seeds instead of `--seed1`/`--seed2`             |
-| `--html`             | *(off)* | Write `galaxy.html` with the hex map                        |
+| `--html`             | *(off)* | Write `cluster.html` with the hex map                        |
 | `--coords`           | *(off)* | Render axial `(q,r)` coordinates inside occupied hexes      |
 | `--planets`          | *(off)* | Include a per-system planet report in the generated HTML    |
 | `--pixel-size`       | `0`     | Hex pixel size (0 = auto-fit to ~1280×1280)                 |
-| `--out`              | `.`     | Output directory for `galaxy.html`                          |
+| `--out`              | `.`     | Output directory for `cluster.html`                          |
 
-Always prints system/star/planet counts and a star-count breakdown. When `--html` is set, writes `galaxy.html` to `--out`; `--coords`, `--planets`, and `--pixel-size` only affect the HTML output.
+Always prints system/star/planet counts and a star-count breakdown. When `--html` is set, writes `cluster.html` to `--out`; `--coords`, `--planets`, and `--pixel-size` only affect the HTML output.
 
 ## simulate
 
-Simulates the GM's interactive cluster-creation workflow locally: generates a galaxy, writes `galaxy.html`, then produces a home-system template for each planet count 3–9 and writes `home-system-{N}.html`. Optionally writes the full run state to a deterministic JSON file for review and golden file tests. Local diagnostic; does not contact the server.
+Simulates the GM's interactive cluster-creation workflow locally: generates a cluster, writes `cluster.html`, then produces a home-system template for each planet count 3–9 and writes `home-system-{N}.html`. Optionally writes the full run state to a deterministic JSON file for review and golden file tests. Local diagnostic; does not contact the server.
 
 ```
 drynn simulate [flags]
@@ -152,7 +152,7 @@ drynn simulate [flags]
 | `--out`              | `.`     | Output directory for HTML reports                                  |
 | `--json`             | `""`    | Also write deterministic run state to this JSON path               |
 
-Galaxy and template generation share a single PRNG stream, so a given `(seed1, seed2)` pair reproduces the entire run byte-for-byte. Template acceptance uses the viability window `(53, 57)` exclusive; for each planet count, candidate stars (those with exactly that many planets) are iterated in `Star.ID` order with no separate attempt cap. If no candidate yields a viable template for a planet count, the corresponding `home-system-{N}.html` contains an "unavailable" report and the command continues.
+Cluster and template generation share a single PRNG stream, so a given `(seed1, seed2)` pair reproduces the entire run byte-for-byte. Template acceptance uses the viability window `(53, 57)` exclusive; for each planet count, candidate stars (those with exactly that many planets) are iterated in `Star.ID` order with no separate attempt cap. If no candidate yields a viable template for a planet count, the corresponding `home-system-{N}.html` contains an "unavailable" report and the command continues.
 
 ## game
 

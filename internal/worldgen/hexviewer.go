@@ -57,7 +57,7 @@ func SystemsToHTML(systems []viewerSystem, pixSize float64) ([]byte, error) {
 
 // RenderDiskHTML renders the full hex disk of the given radius and overlays any
 // systems that fall within that disk. This is useful when you want to see the
-// official galaxy boundary, not just the occupied bounding box.
+// official cluster boundary, not just the occupied bounding box.
 func RenderDiskHTML(radius int, systems []viewerSystem) ([]byte, error) {
 	if radius < 0 {
 		return nil, fmt.Errorf("radius must be non-negative")

@@ -226,7 +226,7 @@ func run(args []string) error {
 			}
 			fmt.Printf("seeds: %d %d\n", seed1, seed2)
 
-			galaxy, err := worldgen.Generate(
+			cluster, err := worldgen.Generate(
 				worldgen.WithDesiredRadius(*testHexRadius),
 				worldgen.WithDesiredNumberOfSystems(*testHexSystems),
 				worldgen.WithMinimumDistance(*testHexMinDist),
@@ -235,16 +235,16 @@ func run(args []string) error {
 			)
 			if err != nil {
 				_, _ = fmt.Fprintf(os.Stderr, "warning: %v\n", err)
-				if galaxy == nil {
+				if cluster == nil {
 					return err
 				}
 			}
 			fmt.Printf("placed %d systems (%d total stars, %d multi-star) in radius-%d disk\n",
-				len(galaxy.Systems), worldgen.TotalStars(galaxy.Systems), worldgen.CountMultiStar(galaxy.Systems), *testHexRadius)
+				len(cluster.Systems), worldgen.TotalStars(cluster.Systems), worldgen.CountMultiStar(cluster.Systems), *testHexRadius)
 
 			// Star-count breakdown.
 			var one, two, three, four, fivePlus int
-			for _, s := range galaxy.Systems {
+			for _, s := range cluster.Systems {
 				switch len(s.Stars) {
 				case 1:
 					one++
@@ -261,11 +261,11 @@ func run(args []string) error {
 			fmt.Printf("  1-star: %d   2-star: %d   3-star: %d   4-star: %d   5+-star: %d\n", one, two, three, four, fivePlus)
 
 			// Pairwise distance statistics.
-			if len(galaxy.Systems) >= 2 {
+			if len(cluster.Systems) >= 2 {
 				var distances []int
-				for i := 0; i < len(galaxy.Systems); i++ {
-					for j := i + 1; j < len(galaxy.Systems); j++ {
-						distances = append(distances, galaxy.Systems[i].Hex.Distance(galaxy.Systems[j].Hex))
+				for i := 0; i < len(cluster.Systems); i++ {
+					for j := i + 1; j < len(cluster.Systems); j++ {
+						distances = append(distances, cluster.Systems[i].Hex.Distance(cluster.Systems[j].Hex))
 					}
 				}
 				sort.Ints(distances)
@@ -285,14 +285,14 @@ func run(args []string) error {
 					len(distances), distances[0], distances[n-1], mean, median)
 
 				// Nearest-neighbor distance statistics.
-				nn := make([]int, len(galaxy.Systems))
-				for i := range galaxy.Systems {
+				nn := make([]int, len(cluster.Systems))
+				for i := range cluster.Systems {
 					nn[i] = math.MaxInt
-					for j := range galaxy.Systems {
+					for j := range cluster.Systems {
 						if i == j {
 							continue
 						}
-						if d := galaxy.Systems[i].Hex.Distance(galaxy.Systems[j].Hex); d < nn[i] {
+						if d := cluster.Systems[i].Hex.Distance(cluster.Systems[j].Hex); d < nn[i] {
 							nn[i] = d
 						}
 					}
@@ -341,7 +341,7 @@ func run(args []string) error {
 				}
 			}
 
-			html := galaxy.ToHTML(0, *testHexCoords, false)
+			html := cluster.ToHTML(0, *testHexCoords, false)
 			outPath := filepath.Join(*testHexOut, "hexmap.html")
 			if err := os.WriteFile(outPath, html, 0o644); err != nil {
 				return err
@@ -351,49 +351,49 @@ func run(args []string) error {
 		},
 	}
 
-	// test-galaxy (standalone diagnostic)
-	testGalaxyFlags := ff.NewFlagSet("test-galaxy")
-	testGalaxyRadius := testGalaxyFlags.IntLong("radius", 15, "disk radius in hexes")
-	testGalaxySystems := testGalaxyFlags.IntLong("systems", 100, "target number of star systems to place")
-	testGalaxyMinDist := testGalaxyFlags.IntLong("min-distance", 0, "minimum distance between systems")
-	testGalaxyNoMerge := testGalaxyFlags.BoolLong("no-merge", "discard placements that are too close instead of merging their stars (default is to merge)")
-	testGalaxySeed1 := testGalaxyFlags.UintLong("seed1", 20, "PRNG seed value 1")
-	testGalaxySeed2 := testGalaxyFlags.UintLong("seed2", 20, "PRNG seed value 2")
-	testGalaxyRandomSeeds := testGalaxyFlags.BoolLong("use-random-seeds", "use random seeds instead of --seed1/--seed2")
-	testGalaxyHTML := testGalaxyFlags.BoolLong("html", "write galaxy.html with the hex map")
-	testGalaxyCoords := testGalaxyFlags.BoolLong("coords", "render axial coordinates in occupied hexes")
-	testGalaxyPlanets := testGalaxyFlags.BoolLong("planets", "include a planet report in the generated HTML")
-	testGalaxyPixel := testGalaxyFlags.Float64Long("pixel-size", 0, "hex pixel size (0 = auto-fit)")
-	testGalaxyOut := testGalaxyFlags.StringLong("out", ".", "output directory for the generated HTML")
-	testGalaxyCmd := &ff.Command{
-		Name:      "test-galaxy",
-		Usage:     "test-galaxy [flags]",
-		ShortHelp: "generate a galaxy and optionally render it to HTML",
-		Flags:     testGalaxyFlags,
+	// test-cluster (standalone diagnostic)
+	testClusterFlags := ff.NewFlagSet("test-cluster")
+	testClusterRadius := testClusterFlags.IntLong("radius", 15, "disk radius in hexes")
+	testClusterSystems := testClusterFlags.IntLong("systems", 100, "target number of star systems to place")
+	testClusterMinDist := testClusterFlags.IntLong("min-distance", 0, "minimum distance between systems")
+	testClusterNoMerge := testClusterFlags.BoolLong("no-merge", "discard placements that are too close instead of merging their stars (default is to merge)")
+	testClusterSeed1 := testClusterFlags.UintLong("seed1", 20, "PRNG seed value 1")
+	testClusterSeed2 := testClusterFlags.UintLong("seed2", 20, "PRNG seed value 2")
+	testClusterRandomSeeds := testClusterFlags.BoolLong("use-random-seeds", "use random seeds instead of --seed1/--seed2")
+	testClusterHTML := testClusterFlags.BoolLong("html", "write cluster.html with the hex map")
+	testClusterCoords := testClusterFlags.BoolLong("coords", "render axial coordinates in occupied hexes")
+	testClusterPlanets := testClusterFlags.BoolLong("planets", "include a planet report in the generated HTML")
+	testClusterPixel := testClusterFlags.Float64Long("pixel-size", 0, "hex pixel size (0 = auto-fit)")
+	testClusterOut := testClusterFlags.StringLong("out", ".", "output directory for the generated HTML")
+	testClusterCmd := &ff.Command{
+		Name:      "test-cluster",
+		Usage:     "test-cluster [flags]",
+		ShortHelp: "generate a cluster and optionally render it to HTML",
+		Flags:     testClusterFlags,
 		Exec: func(ctx context.Context, args []string) error {
-			seed1, seed2 := uint64(*testGalaxySeed1), uint64(*testGalaxySeed2)
-			if *testGalaxyRandomSeeds {
+			seed1, seed2 := uint64(*testClusterSeed1), uint64(*testClusterSeed2)
+			if *testClusterRandomSeeds {
 				seed1, seed2 = cryptoRandSeeds()
 			}
 			fmt.Printf("seeds: %d %d\n", seed1, seed2)
 
-			galaxy, err := worldgen.Generate(
-				worldgen.WithDesiredRadius(*testGalaxyRadius),
-				worldgen.WithDesiredNumberOfSystems(*testGalaxySystems),
-				worldgen.WithMinimumDistance(*testGalaxyMinDist),
-				worldgen.WithMerge(!*testGalaxyNoMerge),
+			cluster, err := worldgen.Generate(
+				worldgen.WithDesiredRadius(*testClusterRadius),
+				worldgen.WithDesiredNumberOfSystems(*testClusterSystems),
+				worldgen.WithMinimumDistance(*testClusterMinDist),
+				worldgen.WithMerge(!*testClusterNoMerge),
 				worldgen.WithPRNG(prng.NewFromSeed(seed1, seed2)),
 			)
 			if err != nil {
 				_, _ = fmt.Fprintf(os.Stderr, "warning: %v\n", err)
-				if galaxy == nil {
+				if cluster == nil {
 					return err
 				}
 			}
 
 			totalStars, totalPlanets := 0, 0
 			var one, two, three, four, fivePlus int
-			for _, s := range galaxy.Systems {
+			for _, s := range cluster.Systems {
 				n := len(s.Stars)
 				totalStars += n
 				for _, star := range s.Stars {
@@ -412,14 +412,14 @@ func run(args []string) error {
 					fivePlus++
 				}
 			}
-			fmt.Printf("generated %d systems (%d stars, %d planets) in radius-%d galaxy\n",
-				len(galaxy.Systems), totalStars, totalPlanets, galaxy.Radius)
+			fmt.Printf("generated %d systems (%d stars, %d planets) in radius-%d cluster\n",
+				len(cluster.Systems), totalStars, totalPlanets, cluster.Radius)
 			fmt.Printf("  1-star: %d   2-star: %d   3-star: %d   4-star: %d   5+-star: %d\n",
 				one, two, three, four, fivePlus)
 
-			if *testGalaxyHTML {
-				html := galaxy.ToHTML(*testGalaxyPixel, *testGalaxyCoords, *testGalaxyPlanets)
-				outPath := filepath.Join(*testGalaxyOut, "galaxy.html")
+			if *testClusterHTML {
+				html := cluster.ToHTML(*testClusterPixel, *testClusterCoords, *testClusterPlanets)
+				outPath := filepath.Join(*testClusterOut, "cluster.html")
 				if err := os.WriteFile(outPath, html, 0o644); err != nil {
 					return err
 				}
@@ -429,7 +429,7 @@ func run(args []string) error {
 		},
 	}
 
-	// simulate (standalone; generates galaxy + home-system templates locally)
+	// simulate (standalone; generates cluster + home-system templates locally)
 	simulateFlags := ff.NewFlagSet("simulate")
 	simulateRadius := simulateFlags.IntLong("radius", 15, "disk radius in hexes")
 	simulateSystems := simulateFlags.IntLong("systems", 100, "target number of star systems to place")
@@ -443,7 +443,7 @@ func run(args []string) error {
 	simulateCmd := &ff.Command{
 		Name:      "simulate",
 		Usage:     "simulate [flags]",
-		ShortHelp: "generate a galaxy and home-system templates, writing HTML reports",
+		ShortHelp: "generate a cluster and home-system templates, writing HTML reports",
 		Flags:     simulateFlags,
 		Exec: func(ctx context.Context, args []string) error {
 			return runSimulate(simulateOpts{
@@ -555,7 +555,7 @@ func run(args []string) error {
 			healthCmd,
 			versionCmd,
 			testHexCmd,
-			testGalaxyCmd,
+			testClusterCmd,
 			simulateCmd,
 			gameCmd,
 		},
@@ -625,8 +625,8 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  health       check server health")
 	fmt.Fprintln(os.Stderr, "  version      print the build version")
 	fmt.Fprintln(os.Stderr, "  test-hexmap  generate a hex map with star systems and render to HTML")
-	fmt.Fprintln(os.Stderr, "  test-galaxy  generate a galaxy and optionally render it to HTML")
-	fmt.Fprintln(os.Stderr, "  simulate     generate a galaxy and home-system templates, writing HTML reports")
+	fmt.Fprintln(os.Stderr, "  test-cluster  generate a cluster and optionally render it to HTML")
+	fmt.Fprintln(os.Stderr, "  simulate     generate a cluster and home-system templates, writing HTML reports")
 	fmt.Fprintln(os.Stderr, "  game         manage games (create, list, show, update, delete)")
 }
 

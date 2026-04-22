@@ -9,7 +9,7 @@ import (
 	"github.com/mdhender/drynn/internal/prng"
 )
 
-func Generate(options ...Option) (*Galaxy, error) {
+func Generate(options ...Option) (*Cluster, error) {
 	g := &Generator{
 		desiredNumSystems: 100,
 		desiredRadius:     15,
@@ -28,7 +28,7 @@ func Generate(options ...Option) (*Galaxy, error) {
 		return nil, fmt.Errorf("hex gen: %w", err)
 	}
 
-	galaxy := &Galaxy{
+	cluster := &Cluster{
 		Radius:  g.desiredRadius,
 		Systems: make([]*System, 0, len(placements)),
 	}
@@ -46,9 +46,9 @@ func Generate(options ...Option) (*Galaxy, error) {
 			nextStarID++
 			sys.Stars = append(sys.Stars, star)
 		}
-		galaxy.Systems = append(galaxy.Systems, sys)
+		cluster.Systems = append(cluster.Systems, sys)
 	}
-	return galaxy, nil
+	return cluster, nil
 }
 
 func (g *Generator) rollStar() *Star {
