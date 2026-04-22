@@ -133,10 +133,10 @@ Hook the existing `RenderDiskSVG` into the web app as a game-scoped page. The SV
 
 ### Routes
 
-| Route | Handler | Auth | Content |
-|---|---|---|---|
-| `/app/admin/games/:id/galaxy` | `AdminHandler` | admin | Map + system/planet report |
-| `/app/games/:id/galaxy` | `AppHandler` | active player or GM | Map only (no reports) |
+| Route                         | Handler        | Auth                | Content                    |
+|-------------------------------|----------------|---------------------|----------------------------|
+| `/app/admin/games/:id/galaxy` | `AdminHandler` | admin               | Map + system/planet report |
+| `/app/games/:id/galaxy`       | `AppHandler`   | active player or GM | Map only (no reports)      |
 
 The GM sees the same full view as admin (map + reports). Active players in the game see the system map only.
 
