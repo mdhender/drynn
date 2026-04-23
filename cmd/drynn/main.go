@@ -442,6 +442,7 @@ func run(args []string) error {
 	simulateRandomSeeds := simulateFlags.BoolLong("use-random-seeds", "use random seeds instead of --seed1/--seed2")
 	simulateOut := simulateFlags.StringLong("out", ".", "output directory for the generated HTML")
 	simulateJSON := simulateFlags.StringLong("json", "", "also write deterministic run state to this JSON path")
+	simulateCoords := simulateFlags.BoolLong("coords", "render axial coordinates in occupied hexes")
 	simulatePlanets := simulateFlags.BoolLongDefault("planets", true, "include a per-star planet report in cluster.html")
 	simulateDeposits := simulateFlags.BoolLongDefault("deposits", false, "include collapsible deposit detail under each planet (implies --planets)")
 	simulateCmd := &ff.Command{
@@ -460,6 +461,7 @@ func run(args []string) error {
 				randomSeeds: *simulateRandomSeeds,
 				outDir:      *simulateOut,
 				jsonPath:    *simulateJSON,
+				coords:      *simulateCoords,
 				planets:     *simulatePlanets,
 				deposits:    *simulateDeposits,
 			})

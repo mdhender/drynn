@@ -74,7 +74,7 @@ the staged code lands under the final names.
 
 ## 6. CLI update
 
-- [ ] `cmd/drynn simulate` walks the staged entry points in order, accepting defaults for each. (Partial: already consumes `cluster.HomeStarTemplates`.)
+- [x] `cmd/drynn simulate` now walks the staged entry points explicitly (`GenerateHomeStarTemplates` → `GenerateCluster` → `GenerateDeposits`), splitting the master PRNG per stage. Prints per-stage summaries as stages complete. Determinism verified: identical JSON output vs. the `Generate(options...)` path under the same seeds. Gained `--coords`, `--planets` (default true), and `--deposits` (default false; implies `--planets`) flags.
 - [x] JSON state output (`jsonstate.go`) reflects the flat cluster shape: three top-level slices (`systems`, `stars`, `planets`) with `system_id`/`star_id` references, plus `home_star_templates` with per-slot metadata.
 
 ## 7. Stage-4 deposits
