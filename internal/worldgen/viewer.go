@@ -118,9 +118,9 @@ func writeDepositsDetails(buf *bytes.Buffer, p *Planet, deposits []*Deposit) {
 		p.Orbit, p.Kind, len(deposits))
 	fmt.Fprintln(buf, `<table><thead><tr><th>ID</th><th>Resource</th><th>Unit</th><th>Quantity</th><th>Yield %</th><th>Mining</th></tr></thead><tbody>`)
 	for _, d := range deposits {
-		fmt.Fprintf(buf, "<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td>%.2f</td><td>%.0f</td></tr>\n",
+		fmt.Fprintf(buf, "<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td>%.0f</td><td>%.0f</td></tr>\n",
 			d.ID, d.Resource.Label(), d.Resource.UnitCode(),
-			formatQuantity(d.Quantity), d.YieldPct, d.MiningDifficulty)
+			formatQuantity(d.Quantity), d.YieldPct*100, d.MiningDifficulty)
 	}
 	fmt.Fprintln(buf, `</tbody></table></details>`)
 }
