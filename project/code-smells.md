@@ -1,6 +1,6 @@
 # Code Smells Review
 
-Reviewed: 2026-04-16
+Reviewed: 2026-04-22
 
 ---
 
@@ -310,6 +310,166 @@ not enough arguments in call to handler.NewAdminHandler
 
 ---
 
+---
+
+## CDRVW-18. Duplicated planet-generation logic between `rollPlanet` and `generateHomeStarTemplateAttempt` [TODO]
+
+**Files:**
+- `internal/worldgen/generator.go:209-410` — `rollPlanet`
+- `internal/worldgen/templates.go:129-304` — `generateHomeStarTemplateAttempt`
+
+Both functions implement nearly identical planet-generation pipelines: seed
+diameter/temperature from orbit, randomize diameter, classify gas giant,
+compute density and gravity, randomize temperature class with clamping,
+warm small systems, enforce temperature ordering, randomize pressure class
+with clamping, roll atmosphere with normalization, and compute mining
+difficulty.
+
+The two diverge in:
+- Output types (`*Planet` with float64 gravity vs `TemplatePlanet` with int
+  gravity ×100).
+- Mining difficulty formula (the cluster path applies an 11/5 fudge factor;
+  the template path does not).
+- The template path has an earth-like override branch that replaces the
+  standard pipeline for the first eligible planet.
+
+Despite these differences, the bulk of each function is copy-pasted with
+minor variations. Any future change to the planet physics model must be
+applied in two places.
+
+**Suggestion:** Extract a shared core that produces intermediate values
+(or a common internal planet struct) and let each caller apply its
+own post-processing (float conversion, fudge factor, earth-like override).
+
+---
+
+## CDRVW-19. Duplicated seed arrays for diameter and temperature class [TODO]
+
+**Files:**
+- `internal/worldgen/generator.go:210-211` — local `seedDiameter`, `seedTemperatureClass`
+- `internal/worldgen/templates.go:122-123` — package-level `startDiameter`, `startTempClass`
+
+Identical values under different names. If the seed tables change, both
+copies must be updated.
+
+**Suggestion:** Define one package-level constant array pair and reference
+it from both `rollPlanet` and `generateHomeStarTemplateAttempt`.
+
+---
+
+## CDRVW-20. Inconsistent atmosphere representation: `map` vs `[]TemplateGas` [TODO]
+
+**Files:**
+- `internal/worldgen/planets.go:29` — `Planet.Gases` is `map[AtmosphericGas]int`
+- `internal/worldgen/templates.go:20` — `TemplatePlanet.Atmosphere` is `[]TemplateGas`
+
+This forces two separate rendering pipelines (`gasMixLabel` / `sortGasMap`
+for the map, `templateAtmosphereLabel` / `templateGasesToDoc` for the
+slice) and two different atmosphere-generation code paths (`rollPlanet`
+inline loop vs `rollNonEarthAtmosphere` / `buildEarthLikeAtmosphere`).
+
+Every consumer of atmosphere data must know which representation it is
+dealing with. The map form is non-deterministic in iteration order, which
+is why `sortGasMap` and `gasMixLabel` both contain the same sort logic.
+
+**Suggestion:** Settle on one representation (a sorted slice is the
+natural choice since determinism matters). This would unify the
+rendering helpers and simplify any future adapter that persists
+atmospheres.
+
+---
+
+## CDRVW-21. `Planet.Special` struct is never populated by the generator [TODO]
+
+**File:** `internal/worldgen/planets.go:21-26`
+
+```go
+Special struct {
+    NotSpecial      bool
+    IdealHomePlanet bool
+    IdealColony     bool
+    RadioactiveHell bool
+}
+```
+
+No code in `rollPlanet` or `GenerateCluster` sets any of these fields.
+The reference spec (`reference/home-system-templates.md`) shows them being
+set during Phase 3 (template application), which is not yet implemented.
+Meanwhile, `TemplatePlanet.Special` uses a bare `int` for the same concept.
+
+The struct is dead weight today and will be inconsistent with the template
+representation when Phase 3 arrives.
+
+**Suggestion:** Remove the `Special` struct from `Planet` until Phase 3 is
+implemented. At that point, align on a single representation (enum/int or
+named bools) across both `Planet` and `TemplatePlanet`.
+
+---
+
+## CDRVW-22. Dead wrapper functions `TotalStars` and `CountMultiStar` [TODO]
+
+**File:** `internal/worldgen/placement.go:118-122`
+
+```go
+func TotalStars(cluster *Cluster) int { return cluster.TotalStars() }
+func CountMultiStar(cluster *Cluster) int { return cluster.CountMultiStarSystems() }
+```
+
+These package-level functions are one-line wrappers around `Cluster`
+methods. No caller outside the package uses them (all call sites use the
+method form directly). Their doc comments even say "Prefer
+Cluster.TotalStars()".
+
+**Suggestion:** Delete both functions.
+
+---
+
+## CDRVW-23. `RenderDiskHTML` is a subset of `RenderDiskHTMLWithCoords` [TODO]
+
+**File:** `internal/worldgen/hexviewer.go:61-77`
+
+`RenderDiskHTML(radius, systems)` is identical to
+`RenderDiskHTMLWithCoords(radius, systems, false)`. Neither has any
+external callers — `Cluster.ToHTML` uses `RenderDiskSVG` directly.
+
+**Suggestion:** Delete `RenderDiskHTML` and keep only
+`RenderDiskHTMLWithCoords` (or collapse both into a single function). Also
+audit whether `SystemsToHTML` (bounding-box renderer) is still used; if
+not, remove it too.
+
+---
+
+## CDRVW-24. Duplicate gas-sorting logic in `gasMixLabel` and `sortGasMap` [TODO]
+
+**Files:**
+- `internal/worldgen/viewer.go:144-163` — `gasMixLabel`
+- `internal/worldgen/jsonstate.go:216-235` — `sortGasMap`
+
+Both sort a `map[AtmosphericGas]int` by percent descending then gas ID
+ascending and format it. The sort comparator is copy-pasted verbatim. This
+is a downstream symptom of smell #20 (map-backed atmosphere).
+
+**Suggestion:** If the atmosphere moves to a sorted slice (#20), both
+functions become trivial formatters with no sort logic. Otherwise, extract
+a shared `sortedGasKeys` helper.
+
+---
+
+## CDRVW-25. `absInt` reimplements a standard library function [TODO]
+
+**File:** `internal/worldgen/templates.go:442-446`
+
+Go 1.21+ provides the built-in `max`/`min` and the `cmp` package, but
+more directly, integer absolute value can be computed from the standard
+library. Since this project targets Go 1.24 (`go.mod`), the custom
+`absInt` is unnecessary clutter.
+
+**Suggestion:** Replace `absInt(x)` calls with the idiomatic
+`max(x, -x)` or keep as-is if readability is preferred — this is the
+lowest-severity item on the list.
+
+---
+
 ## Summary
 
 | #  | Severity | Category                       |
@@ -331,3 +491,11 @@ not enough arguments in call to handler.NewAdminHandler
 | 15 | Low      | Testability / global state     |
 | 16 | Low      | Repeated pattern (see #11)     |
 | 17 | Low      | Stale test code                |
+| 18 | High     | Duplication (worldgen)         |
+| 19 | Medium   | Duplication (worldgen)         |
+| 20 | Medium   | Inconsistent representation    |
+| 21 | Low      | Dead code (worldgen)           |
+| 22 | Low      | Dead code (worldgen)           |
+| 23 | Low      | Dead code / duplication        |
+| 24 | Low      | Duplication (downstream of #20)|
+| 25 | Low      | Redundant helper               |
