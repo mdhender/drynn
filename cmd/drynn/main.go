@@ -345,7 +345,7 @@ func run(args []string) error {
 				}
 			}
 
-			html := cluster.ToHTML(0, *testHexCoords, false)
+			html := cluster.ToHTML(0, *testHexCoords, false, false)
 			outPath := filepath.Join(*testHexOut, "hexmap.html")
 			if err := os.WriteFile(outPath, html, 0o644); err != nil {
 				return err
@@ -420,7 +420,7 @@ func run(args []string) error {
 				one, two, three, four, fivePlus)
 
 			if *testClusterHTML {
-				html := cluster.ToHTML(*testClusterPixel, *testClusterCoords, *testClusterPlanets)
+				html := cluster.ToHTML(*testClusterPixel, *testClusterCoords, *testClusterPlanets, false)
 				outPath := filepath.Join(*testClusterOut, "cluster.html")
 				if err := os.WriteFile(outPath, html, 0o644); err != nil {
 					return err
@@ -442,6 +442,8 @@ func run(args []string) error {
 	simulateRandomSeeds := simulateFlags.BoolLong("use-random-seeds", "use random seeds instead of --seed1/--seed2")
 	simulateOut := simulateFlags.StringLong("out", ".", "output directory for the generated HTML")
 	simulateJSON := simulateFlags.StringLong("json", "", "also write deterministic run state to this JSON path")
+	simulatePlanets := simulateFlags.BoolLongDefault("planets", true, "include a per-star planet report in cluster.html")
+	simulateDeposits := simulateFlags.BoolLongDefault("deposits", false, "include collapsible deposit detail under each planet (implies --planets)")
 	simulateCmd := &ff.Command{
 		Name:      "simulate",
 		Usage:     "simulate [flags]",
@@ -458,6 +460,8 @@ func run(args []string) error {
 				randomSeeds: *simulateRandomSeeds,
 				outDir:      *simulateOut,
 				jsonPath:    *simulateJSON,
+				planets:     *simulatePlanets,
+				deposits:    *simulateDeposits,
 			})
 		},
 	}

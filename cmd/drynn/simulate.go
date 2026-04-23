@@ -19,6 +19,8 @@ type simulateOpts struct {
 	randomSeeds bool
 	outDir      string
 	jsonPath    string
+	planets     bool
+	deposits    bool
 }
 
 // runSimulate simulates the GM's interactive workflow: generate a cluster
@@ -61,7 +63,8 @@ func runSimulate(opts simulateOpts) error {
 	)
 
 	clusterPath := filepath.Join(opts.outDir, "cluster.html")
-	if err := os.WriteFile(clusterPath, cluster.ToHTML(0, false, true), 0o644); err != nil {
+	showPlanets := opts.planets || opts.deposits
+	if err := os.WriteFile(clusterPath, cluster.ToHTML(0, false, showPlanets, opts.deposits), 0o644); err != nil {
 		return fmt.Errorf("write cluster.html: %w", err)
 	}
 	fmt.Printf("wrote %s\n", clusterPath)
