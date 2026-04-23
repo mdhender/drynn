@@ -10,6 +10,8 @@ type Planet struct {
 	StarID int
 	Orbit  int
 
+	Kind PlanetKind
+
 	Diameter         int     // thousands of km
 	Density          float64 // earth ~= 5.5
 	Gravity          float64 // in G's; earth = 1.0
@@ -27,6 +29,36 @@ type Planet struct {
 	Gases map[AtmosphericGas]int
 
 	MiningDifficulty float64
+}
+
+type PlanetKind int
+
+const (
+	KindRocky        PlanetKind = 1
+	KindGasGiant     PlanetKind = 2
+	KindAsteroidBelt PlanetKind = 3
+)
+
+func (k PlanetKind) String() string {
+	switch k {
+	case KindRocky:
+		return "rocky"
+	case KindGasGiant:
+		return "gas giant"
+	case KindAsteroidBelt:
+		return "asteroid belt"
+	}
+	return "unknown"
+}
+
+// planetKindFromDiameter classifies a planet from its diameter (in
+// thousands of km). Asteroid belts are not yet emitted by the planet
+// generator — pending the asteroid-belt work.
+func planetKindFromDiameter(diameter int) PlanetKind {
+	if diameter > 40 {
+		return KindGasGiant
+	}
+	return KindRocky
 }
 
 type AtmosphericGas int

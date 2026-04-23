@@ -241,7 +241,8 @@ func rollPlanet(r *prng.PRNG, star *Star, orbit int, previousPlanet *Planet) *Pl
 		p.Diameter += r.D4(1)
 	}
 
-	isGasGiant := p.Diameter > 40
+	p.Kind = planetKindFromDiameter(p.Diameter)
+	isGasGiant := p.Kind == KindGasGiant
 
 	// compute density
 	if isGasGiant { // range 0.6 to 1.7

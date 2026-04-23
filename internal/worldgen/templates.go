@@ -11,6 +11,7 @@ import "github.com/mdhender/drynn/internal/prng"
 // from worldgen.Planet, which stores gravity/density as float64 and applies
 // an 11/5 fudge to mining difficulty; do not mix the two.
 type TemplatePlanet struct {
+	Kind             PlanetKind
 	Diameter         int
 	Gravity          int
 	TemperatureClass int
@@ -171,7 +172,8 @@ func generateHomeStarTemplateAttempt(r *prng.PRNG, numPlanets int) (*HomeStarTem
 		}
 
 		// 1c. Gas-giant test
-		isGasGiant := tp.Diameter > 40
+		tp.Kind = planetKindFromDiameter(tp.Diameter)
+		isGasGiant := tp.Kind == KindGasGiant
 
 		// 1d. Density and gravity (both × 100)
 		var density int
@@ -229,6 +231,7 @@ func generateHomeStarTemplateAttempt(r *prng.PRNG, numPlanets int) (*HomeStarTem
 		// planet and skips steps 1i–1k.
 		if !earthLikeConsumed && tp.TemperatureClass <= 11 {
 			tp.Diameter = 11 + r.Roll(1, 3)
+			tp.Kind = planetKindFromDiameter(tp.Diameter)
 			tp.Gravity = 93 + r.Roll(1, 11) + r.Roll(1, 11) + r.Roll(1, 5)
 			tp.TemperatureClass = 9 + r.Roll(1, 3)
 			tp.PressureClass = 8 + r.Roll(1, 3)

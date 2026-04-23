@@ -79,7 +79,11 @@ the staged code lands under the final names.
 
 ## 7. Stage-4 deposits
 
-- [ ] Separate design discussion is required before implementation. No work on deposits until then.
+- [x] Design locked 2026-04-22. See [`design/natural-resource-deposits.md`](design/natural-resource-deposits.md).
+- [x] `Planet.Kind` field added (`KindRocky`, `KindGasGiant`; `KindAsteroidBelt` reserved). Stamped in `rollPlanet` and re-stamped inside the template earth-like override. Helper `planetKindFromDiameter` centralizes the rule.
+- [x] Inline `Diameter > 40` checks migrated to `Kind == KindGasGiant` at `templates.go:174` and `generator.go:244`. JSON state now surfaces `kind` on planet and template-planet docs.
+- [x] Quantity-range distribution: **triangular** (sum of two equal dice × step). Log-uniform and hybrid variants documented as playtest fallbacks. See design doc § Quantity Distribution.
+- [ ] Implement `GenerateDeposits(rng, cluster)` per the design doc; add `Deposits []*Deposit` slice to `Cluster` and wire into the staged `Generate(...)` entry point.
 
 ---
 

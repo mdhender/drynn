@@ -61,6 +61,7 @@ type planetDoc struct {
 	ID               int      `json:"id"`
 	StarID           int      `json:"star_id"`
 	Orbit            int      `json:"orbit"`
+	Kind             string   `json:"kind"`
 	Diameter         int      `json:"diameter"`
 	Density          float64  `json:"density"`
 	Gravity          float64  `json:"gravity"`
@@ -85,6 +86,7 @@ type homeStarTemplateDoc struct {
 }
 
 type templatePlanetDoc struct {
+	Kind             string   `json:"kind"`
 	Diameter         int      `json:"diameter"`
 	Gravity          int      `json:"gravity"`
 	TemperatureClass int      `json:"temperature_class"`
@@ -145,6 +147,7 @@ func buildClusterDoc(g *Cluster) clusterDoc {
 			ID:               p.ID,
 			StarID:           p.StarID,
 			Orbit:            p.Orbit,
+			Kind:             p.Kind.String(),
 			Diameter:         p.Diameter,
 			Density:          p.Density,
 			Gravity:          p.Gravity,
@@ -171,6 +174,7 @@ func buildHomeStarTemplateDoc(o *HomeStarTemplateOutcome) homeStarTemplateDoc {
 	td.Planets = make([]templatePlanetDoc, 0, len(o.Template.Planets))
 	for _, p := range o.Template.Planets {
 		td.Planets = append(td.Planets, templatePlanetDoc{
+			Kind:             p.Kind.String(),
 			Diameter:         p.Diameter,
 			Gravity:          p.Gravity,
 			TemperatureClass: p.TemperatureClass,
