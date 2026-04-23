@@ -1,9 +1,9 @@
 # Home System Generation Rules
 
-> **Status: Not yet implemented.** The rules below describe planned behavior
-> for a future implementation. The active `worldgen` package does not yet
-> include home system template creation, system selection, template
-> application, or race/empire initialization.
+> **Status: Partially implemented.** Phase 1 (Template Creation) is
+> implemented in the `worldgen` package — see `templates.go` and
+> `GenerateHomeStarTemplates`. Phases 2–4 (System Selection, Template
+> Application, Race/Empire Initialization) are not yet implemented.
 
 This document specifies the planned rules for generating a home system for
 a new race. It covers template creation, system selection, template

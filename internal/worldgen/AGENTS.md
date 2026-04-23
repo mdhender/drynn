@@ -2,13 +2,21 @@
 
 ## Overview
 
-Pure in-memory world generation. Produces a `*Cluster` (systems on an axial hex map, stars, planets with atmospheres and mining difficulty) and home-system `*HomeStarTemplate` values. No database, no I/O beyond optional HTML/JSON rendering.
+Pure in-memory world generation. Produces a `*Cluster` containing systems on an axial hex map, stars, planets (with atmospheres, mining difficulty, and planet kind), per-planet deposits, and a home-star-template library. No database, no I/O beyond optional HTML/JSON rendering.
+
+The package runs four stages via a single `Generate(options...)` convenience wrapper, or callers can invoke stages independently:
+
+1. `GenerateHomeStarTemplates` — stage-1 template library (7 slots for planet counts 3–9).
+2. `GenerateCluster` — stage-2 hex placement + stage-3 star/planet rolling.
+3. `GenerateDeposits` — stage-4 per-planet mineral deposits.
+
+Each stage receives its own PRNG substream split from the master seed, so re-running one stage does not perturb another.
 
 The package is "generator-first": it runs before any adapter exists. Adapters and persistence live outside this package and are the responsibility of their callers.
 
 ## Types are for the generator's convenience
 
-All types in this package — `Cluster`, `System`, `Star`, `Planet`, `HomeStarTemplate`, `TemplatePlanet`, `TemplateGas`, etc. — exist to make the generator itself readable and testable. They are **not** a public schema and they do not mirror any database table.
+All types in this package — `Cluster`, `System`, `Star`, `Planet`, `Deposit`, `HomeStarTemplate`, `HomeStarTemplateOutcome`, `TemplatePlanet`, `TemplateGas`, etc. — exist to make the generator itself readable and testable. They are **not** a public schema and they do not mirror any database table.
 
 Agents are **empowered** to update type definitions when doing so makes the code cleaner, more idiomatic, or easier to test:
 
@@ -27,11 +35,34 @@ What *not* to do:
 
 ## Authoritative specs
 
-- `design/home-system-template-design.md` — working spec for template generation (`GenerateHomeStarTemplate`, `TemplatePlanet`, ALSN, viability window). Treat as authoritative.
-- `design/mining-difficulty.md` — working spec for mining difficulty formulas.
-- `reference/*.md` — inherited from a prior engine, kept for historical context. **Treat `design/` as authoritative where they disagree.** In particular, the inherited reference doc describes flat `homesystem{n}.dat` files; templates will live in the database.
+The **`reference/` directory** contains the drynn-native specifications. These are the authoritative source for how worldgen works:
 
-Do not implement Phase 2 (system selection), Phase 3 (template application), or Phase 4 (race/empire init) from the reference doc here. Those wait until after the model is updated and an adapter exists.
+- `reference/cluster-generation.md` — cluster placement, star/planet rolling, type definitions.
+- `reference/home-system-templates.md` — stage-1 driver, template generation, viability window, template application (future).
+- `reference/home-system-generation.md` — full home-system lifecycle (Phase 1 implemented, Phases 2–4 future).
+- `reference/planet-generation.md` — per-planet generation algorithm.
+- `reference/lsn-determination.md` — approximate LSN (implemented) and full LSN (future).
+
+The **`design/` directory** contains historical working documents inherited from a prior engine. They carry DRAFT banners. Where `design/` and `reference/` disagree, **`reference/` wins**. Specific notes:
+
+- `design/home-system-template-design.md` — the per-planet generation steps (1a–1k) and viability-window tuning (Addendum A) remain valid. The single-attempt "loop until viable" wrapper is superseded by the stage-1 driver.
+- `design/mining-difficulty.md` — historical reference for mining difficulty formulas and gameplay impact.
+- `design/natural-resource-deposits.md` — current deposit-generation design (locked 2026-04-22). Matches `deposits.go`.
+
+Do not implement Phase 2 (system selection), Phase 3 (template application), or Phase 4 (race/empire init) from the reference docs here. Those wait until after the model is updated and an adapter exists.
+
+## Key types
+
+| Type | File | Description |
+|------|------|-------------|
+| `Cluster` | `cluster.go` | Top-level output: `Systems`, `Stars`, `Planets`, `Deposits` (flat slices), `HomeStarTemplates` |
+| `System` | `systems.go` | Hex location with sequential `ID` |
+| `Star` | `stars.go` | Type, color, size, `NumPlanets`; references `System.ID` via `SystemID` |
+| `Planet` | `planets.go` | Physical attributes, `Kind` (`KindRocky`/`KindGasGiant`), atmosphere as `map[AtmosphericGas]int` |
+| `Deposit` | `deposits.go` | Per-planet resource deposit (`Resource`, `Quantity`, `YieldPct`, `MiningDifficulty`) |
+| `HomeStarTemplate` | `templates.go` | Planet set for one planet count (3–9) with viability score |
+| `HomeStarTemplateOutcome` | `templates.go` | Stage-1 result per slot: template (may be nil), attempts, best score |
+| `TemplatePlanet` | `templates.go` | Template planet with int gravity (×100), `[]TemplateGas` atmosphere |
 
 ## Accepted defects — do not propose fixes
 
@@ -43,11 +74,16 @@ If you see warnings in `burndown.md` about these, they describe the known state,
 ## Determinism
 
 - Seed the generator with `prng.NewFromSeed(s1, s2)` and pass via `WithPRNG`. Do not read `math/rand` or `crypto/rand` inside this package.
-- `Generate` assigns sequential `System.ID` and `Star.ID` values so that callers have a stable sort key — use these whenever you need to iterate over stars deterministically (see `GenerateHomeStarTemplateUntilViable`).
+- `Generate` splits the master PRNG into per-stage substreams via `prng.PRNG.Split()`. Changing one stage's inputs does not shift another stage's output under the same master seed.
+- `GenerateCluster` assigns sequential `System.ID`, `Star.ID`, and `Planet.ID` values. `GenerateDeposits` assigns `Deposit.ID = PlanetID*100 + N`.
 - Any map-backed field (e.g. `Planet.Gases`) must be sorted before emitting to stable output. The JSON DTO layer already does this; replicate the pattern if you add another renderer.
 
 ## Testing notes
 
 - Pure functions only — no DB, no network, no fixtures. Unit tests can run without Docker or Postgres.
-- The private `generateHomeStarTemplateAttempt(rng, *Star) (*HomeStarTemplate, int)` always returns a template plus its score (never nil), which is the seam for template-generation tests: feed a deterministic PRNG and a star with a known planet count, assert on the returned struct.
+- The private `generateHomeStarTemplateAttempt(rng, numPlanets int) (*HomeStarTemplate, int)` always returns a template plus its score (never nil), which is the seam for template-generation tests: feed a deterministic PRNG and a planet count, assert on the returned struct.
 - `MarshalSimulationJSON` produces byte-stable output given identical input, which makes it the natural target for golden file tests.
+
+## Ignored directories
+
+- `aow/` and `cartesian/` are from a failed experiment. Ignore them.

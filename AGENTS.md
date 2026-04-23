@@ -38,7 +38,8 @@ drynn/
 │   ├── config/                 # Persisted JSON config + env overrides
 │   ├── handler/                # HTTP handlers (public, auth, app, admin) + view data
 │   ├── server/                 # Echo bootstrap, route registration, template renderer
-│   └── service/                # Business logic, domain errors
+│   ├── service/                # Business logic, domain errors
+│   └── worldgen/               # Pure in-memory world generation (cluster, stars, planets, deposits, templates)
 ├── db/
 │   ├── schema.sql              # Desired schema (Atlas source of truth)
 │   ├── migrations/             # Atlas versioned migrations (+ atlas.sum)

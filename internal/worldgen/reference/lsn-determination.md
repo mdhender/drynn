@@ -1,10 +1,10 @@
 # Life Support Needed (LSN) Determination
 
-> **Status: Not yet implemented.** The rules below describe planned behavior
-> for a future implementation. The active `worldgen` package does not yet
-> include LSN calculations. The approximate LSN algorithm is intended for
-> use in the planned home system viability check; the full LSN algorithm
-> is intended for gameplay systems.
+> **Status: Partially implemented.** The approximate LSN algorithm is
+> implemented in `templates.go` (`approximateLSN`) and used by the
+> home-star template viability check. The full LSN algorithm (used
+> during gameplay for production penalties and colony growth) is not
+> yet implemented.
 
 This document specifies the rules for computing the Life Support Needed
 (LSN) value for a planet relative to a race's home planet. It is

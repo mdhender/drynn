@@ -43,6 +43,7 @@ type Planet struct {
     Diameter         int                    // thousands of km
     Density          float64                // earth ≈ 5.5
     Gravity          float64                // in G's; earth = 1.0
+    Kind             PlanetKind             // KindRocky or KindGasGiant
     TemperatureClass int                    // 1..30 (3..7 for gas giants)
     PressureClass    int                    // 0..29
 
@@ -148,6 +149,7 @@ diameter = dia
 
 ```
 gas_giant = (diameter > 40)
+kind = planetKindFromDiameter(diameter)  // KindGasGiant if diameter > 40, else KindRocky
 ```
 
 Planets with diameter > 40,000 km are gas giants.
@@ -367,6 +369,7 @@ set during generation:
 
 ```
 planet.Diameter          = diameter          // int
+planet.Kind              = kind              // PlanetKind
 planet.Density           = density           // float64
 planet.Gravity           = gravity           // float64
 planet.TemperatureClass  = temperature_class // int

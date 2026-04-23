@@ -96,7 +96,7 @@ drynn's native units, used throughout this document:
 |--------------------|-----------|------------------------------|
 | `Diameter`         | `int`     | thousands of km              |
 | `Density`          | `float64` | earth ≈ 5.5 (generator only) |
-| `Gravity`          | `float64` | earth = 1.0 G                |
+| `Gravity`          | `int`     | ×100; earth = 100            |
 | `TemperatureClass` | `int`     | 1..30 (3..7 for gas giants)  |
 | `PressureClass`    | `int`     | 0..29                        |
 | `MiningDifficulty` | `float64` | earth ≈ 210 (scaled × 100)   |
@@ -179,18 +179,20 @@ Template generation only ever emits `TemplateNotSpecial` or
 
 ```go
 type TemplatePlanet struct {
+    Kind             PlanetKind                  // terrestrial or gas giant
     Diameter         int                         // thousands of km; minimum 3
-    Gravity          float64                     // earth = 1.0
+    Gravity          int                         // ×100; earth = 100
     TemperatureClass int                         // 1..30
     PressureClass    int                         // 0..29
-    MiningDifficulty float64                     // scaled × 100; earth ≈ 210
-    Gases            map[AtmosphericGas]int      // gas → percent (0..100)
-    Special          TemplatePlanetSpecial       // 0 or 1 from generation
+    MiningDifficulty int                         // scaled × 100; earth ≈ 210
+    Atmosphere       []TemplateGas               // gas entries; percentages sum to 100
+    Special          int                         // 0 or 1 from generation
 }
 ```
 
-`Gases` has the same shape as `Planet.Gases`. Percentages sum to 100
-for planets with an atmosphere; the map is empty for vacuum worlds
+`Atmosphere` is a slice of `TemplateGas` (each entry holds a `Gas`
+identifier and a `Percent`). Percentages sum to 100 for planets with
+an atmosphere; the slice is nil for vacuum worlds
 (`PressureClass == 0`).
 
 `Density` is not stored. It is an intermediate used during generation
@@ -201,7 +203,7 @@ to compute `Gravity`, and nothing in template application needs it.
 ```go
 type HomeStarTemplate struct {
     NumPlanets     int                // 3..9
-    Planets        []*TemplatePlanet  // length == NumPlanets, in orbit order (inner to outer)
+    Planets        []TemplatePlanet   // length == NumPlanets, in orbit order (inner to outer)
     ViabilityScore int                // the accepted score (54, 55, or 56)
 }
 ```
@@ -266,7 +268,6 @@ type HomeStarTemplateOutcome struct {
     Template     *HomeStarTemplate  // nil when the slot was not filled
     Attempts     int                // template-generation calls against matching candidates
     BestScore    int                // highest viability score seen while attempting
-    AcceptedSeed uint64             // stage-1 PRNG snapshot when the slot was filled (0 if nil)
 }
 ```
 
@@ -280,31 +281,29 @@ whether to accept the cluster with the NULL slot or re-seed stage 1.
 ### Algorithm
 
 ```
-slots := empty map[int]*HomeStarTemplateOutcome, one per planet count in [3..9]
-for rolls := 0; rolls < maxCandidateRolls; rolls++ {
-    candidate := rollStar(rng)          // existing generator, unchanged
-    n := len(candidate.Planets)
+outcomes := make([]*HomeStarTemplateOutcome, 10)   // indexes 0..2 unused; 3..9 initialized
+filled := 0
+for rolls := 0; rolls < maxCandidateRolls && filled < 7; rolls++ {
+    candidate, _ := rollStar(rng)       // existing generator, unchanged
+    n := candidate.NumPlanets
     if n < 3 || n > 9 {
         continue                        // candidate outside the template range
     }
-    slot := slots[n]
+    slot := outcomes[n]
     if slot.Template != nil {
         continue                        // this slot is already filled
     }
-    template, score := generateHomeStarTemplateAttempt(rng, candidate)
+    template, score := generateHomeStarTemplateAttempt(rng, n)
     slot.Attempts++
     if score > slot.BestScore {
         slot.BestScore = score
     }
     if viabilityWindow.Accepts(score) {
         slot.Template = template
-        slot.AcceptedSeed = rng.Snapshot()
-        if allSlotsFilled(slots) {
-            break
-        }
+        filled++
     }
 }
-return slots
+return outcomes
 ```
 
 ### Properties and Trade-offs
@@ -350,9 +349,9 @@ Consequences that propagate out of stage 1:
 
 ### Relationship to Function 1
 
-Function 1 (currently `GenerateHomeStarTemplate`; forthcoming
-`GenerateHomeStarTemplateAttempt`) is the single-attempt building
-block: one star, one call, one `(*Template, score)` result. The
+Function 1 (`generateHomeStarTemplateAttempt`) is the single-attempt
+building block: one planet count, one call, one
+`(*HomeStarTemplate, score)` result. The
 stage-1 driver is the loop that feeds it candidates and gates
 acceptance on the viability window. The per-planet generation steps
 described in the Function 1 section below remain authoritative and
@@ -361,17 +360,15 @@ are unchanged by the staged-driver design.
 ## Function 1 — Generate a Home System Template
 
 ```go
-func GenerateHomeStarTemplate(rng *prng.PRNG, numPlanets int) *HomeStarTemplate
+func generateHomeStarTemplateAttempt(rng *prng.PRNG, numPlanets int) (*HomeStarTemplate, int)
 ```
 
 `numPlanets` must be in `[3, 9]`.
 
-**Returns** a `*HomeStarTemplate` if the generated system passes the
-viability check, or `nil` if it does not. No side effects, no global
-state. All randomness is drawn from `rng`.
-
-Callers are responsible for retrying on `nil` until they get a viable
-template (a thin wrapper that loops is fine).
+**Returns** a non-nil `*HomeStarTemplate` and its computed viability
+score. The function always returns a template; acceptance is the
+caller's job (compare the score against the viability window). No
+side effects, no global state. All randomness is drawn from `rng`.
 
 ### Algorithm Overview
 
@@ -493,37 +490,43 @@ temperature class is ≤ 11. It replaces all previously computed values
 for that planet:
 
 ```
-diameter         = 11 + rng.Roll(1, 3)                                       // 12..14
-gravity          = (93 + rng.Roll(1, 11) + rng.Roll(1, 11) + rng.Roll(1, 5)) / 100.0  // 0.97..1.20
+diameter         = 11 + rng.Roll(1, 3)                                        // 12..14
+gravity          = 93 + rng.Roll(1, 11) + rng.Roll(1, 11) + rng.Roll(1, 5)   // 96..120 (×100; i.e. 0.96..1.20 G)
 temperatureClass = 9 + rng.Roll(1, 3)                                        // 10..12
 pressureClass    = 8 + rng.Roll(1, 3)                                        // 9..11
-miningDifficulty = 208.0 + float64(rng.Roll(1, 11) + rng.Roll(1, 11))        // 210..230
+miningDifficulty = 208 + rng.Roll(1, 11) + rng.Roll(1, 11)                   // 210..230
 special          = TemplateIdealHomePlanet
 ```
 
-Build the atmosphere (fill `Gases` directly — map insertion order is
-not significant because shifts happen at apply time, not here):
+Build the atmosphere as a `[]TemplateGas` slice via
+`buildEarthLikeAtmosphere`. The slice is built in a fixed order:
+optional NH3, a reserved N2 placeholder, optional CO2, O2, then N2
+is filled with the remainder.
 
 ```
-totalPercent = 0
+gases := []TemplateGas{}
+total := 0
 
 if rng.Roll(1, 3) == 1:                 // 1-in-3 chance of ammonia
-    p := rng.Roll(1, 30)
-    gases[GasNH3] = p
-    totalPercent += p
+    pct := rng.Roll(1, 30)
+    gases = append(gases, {Gas: GasNH3, Percent: pct})
+    total += pct
+
+nitroIndex := len(gases)
+gases = append(gases, {Gas: GasN2, Percent: 0})   // placeholder
 
 if rng.Roll(1, 3) == 1:                 // 1-in-3 chance of carbon dioxide
-    p := rng.Roll(1, 30)
-    gases[GasCO2] = p
-    totalPercent += p
+    pct := rng.Roll(1, 30)
+    gases = append(gases, {Gas: GasCO2, Percent: pct})
+    total += pct
 
 // oxygen: 11..30%
-p := rng.Roll(1, 20) + 10
-gases[GasO2] = p
-totalPercent += p
+o2Pct := rng.Roll(1, 20) + 10
+gases = append(gases, {Gas: GasO2, Percent: o2Pct})
+total += o2Pct
 
 // nitrogen takes the remainder
-gases[GasN2] = 100 - totalPercent
+gases[nitroIndex].Percent = 100 - total
 ```
 
 After the override, **skip** the remaining per-planet steps
@@ -538,7 +541,7 @@ gravity, moderate-mining candidate per template.
 #### 9. Pressure Class (non-earth-like only)
 
 ```
-pc = int(gravity * 10)   // drynn units: gravity is in G; pc seed uses the integer part
+pc = gravity / 10        // gravity is ×100 int; integer division
 dieSize = max(pc / 4, 2)
 nRolls  = rng.Roll(1, 3) + rng.Roll(1, 3) + rng.Roll(1, 3)
 
@@ -564,20 +567,20 @@ else:
 Force vacuum (`pc = 0`) when the planet cannot retain an atmosphere:
 
 ```
-if gravity < 0.1:        // too small to hold an atmosphere
-    pc = 0
-else if tc < 2 OR tc > 27:  // too extreme for an atmosphere
+if gravity < 10 OR tc < 2 OR tc > 27:
     pc = 0
 ```
 
-> The old engine used `gravity < 10` against scaled gravity; in drynn
-> units (Earth = 1.0) that threshold is `0.1`.
+`gravity < 10` means less than 0.10 G (gravity is ×100 int).
 
 #### 10. Atmosphere (non-earth-like only)
 
-If `pc == 0`, leave `Gases` empty and skip to mining difficulty.
+If `pc == 0`, leave `Atmosphere` empty and skip to mining difficulty.
 
-Otherwise choose a window of five candidate gases based on temperature:
+Otherwise call `rollNonEarthAtmosphere(rng, tc)`, which chooses a
+window of five candidate gases based on temperature, rolls quantities,
+and normalizes to percentages. The function works entirely with
+`[]TemplateGas` slices — no maps involved.
 
 ```
 firstGas = clamp((100 * tc) / 225, 1, 9)
@@ -589,9 +592,9 @@ Select gases:
 numWanted = (rng.Roll(1, 4) + rng.Roll(1, 4)) / 2
 totalQty  = 0
 
-repeat until len(gases) > 0:
+repeat until len(picked) > 0:
     for g := firstGas; g <= firstGas+4; g++:
-        if len(gases) == numWanted:
+        if len(picked) == numWanted:
             break
 
         if g == GasHe:
@@ -605,49 +608,36 @@ repeat until len(gases) > 0:
             else:
                 qty := rng.Roll(1, 100)
 
-        gases[AtmosphericGas(g)] = qty
+        picked = append(picked, {Gas: AtmosphericGas(g), Percent: qty})
         totalQty += qty
 ```
 
 The outer retry loop ensures at least one gas is always chosen. If
 every candidate in the window is skipped, try the whole window again.
 
-Normalize quantities to integer percentages. Because `gases` is a map,
-Go's iteration order is randomized and **must not** be used as the
-source of logic. Copy the keys into a slice, sort by gas, and shuffle it
-with the PRNG, then drive normalization from the shuffled slice — that is
-the only way to get deterministic output from a map-backed atmosphere.
+Normalize quantities to integer percentages in slice order, and give
+the rounding remainder to `picked[0]`:
 
 ```
-order := make([]AtmosphericGas, 0, len(gases))
-for g := range gases {
-    order = append(order, g)
-}
-// Sort before shuffle: map iteration order is randomized, so without
-// this the PRNG permutes a non-deterministic starting sequence and the
-// overall output stops being reproducible.
-sort.Slice(order, func(i, j int) bool {
-    return order[i] < order[j]
-})
-rng.Shuffle(len(order), func(i, j int) {
-    order[i], order[j] = order[j], order[i]
-})
+totalPct := 0
+for i := range picked:
+    pct := (100 * quantities[i]) / totalQty
+    picked[i].Percent = pct
+    totalPct += pct
 
-remainder := 100
-for _, g := range order {
-    gases[g] = (100 * gases[g]) / totalQty
-    remainder -= gases[g]
-}
-
-// remainder target is the first entry of the shuffled slice
-gases[order[0]] += remainder
+picked[0].Percent += 100 - totalPct
 ```
 
-Every downstream step that needs to walk `gases` in order must reuse
-this same **sort-then-shuffle** pattern. Do not iterate a map anywhere
-that feeds logic (randomization targets, remainder recipients, slot
-selection, etc.), and do not skip the sort — a shuffle of a
-non-deterministic order is still non-deterministic.
+> **Determinism note.** Template-side atmosphere generation uses
+> `[]TemplateGas` slices and is naturally deterministic. However, any
+> code that walks a `map`-backed atmosphere (such as `Planet.Gases`
+> in the cluster generator, or the future `ApplyHomeStarTemplate`)
+> **must** use the **sort-then-shuffle** pattern: copy map keys into
+> a slice, sort by gas id, then shuffle with the PRNG. Do not iterate
+> a map anywhere that feeds logic (randomization targets, remainder
+> recipients, slot selection, etc.), and do not skip the sort — a
+> shuffle of a non-deterministic order is still non-deterministic.
+> See Step 2c and Invariant 6 for the canonical pattern.
 
 #### 11. Mining Difficulty (non-earth-like only)
 
@@ -713,18 +703,22 @@ breathes oxygen and treats any gas not on the home planet as poison.
 Each class of difference costs 2 points (not 3, as the full LSN does).
 
 ```go
-func approximateLSN(candidate, home *TemplatePlanet) int {
+func approximateLSN(candidate, home TemplatePlanet) int {
     lsn := 0
     lsn += 2 * abs(candidate.TemperatureClass - home.TemperatureClass)
     lsn += 2 * abs(candidate.PressureClass    - home.PressureClass)
 
     lsn += 2  // assume oxygen is absent; the loop below removes the penalty if present
 
-    for g := range candidate.Gases {
-        if g == GasO2 {
+    homeGases := make(map[AtmosphericGas]bool, len(home.Atmosphere))
+    for _, g := range home.Atmosphere {
+        homeGases[g.Gas] = true
+    }
+    for _, g := range candidate.Atmosphere {
+        if g.Gas == GasO2 {
             lsn -= 2
         }
-        if _, ok := home.Gases[g]; !ok {
+        if !homeGases[g.Gas] {
             lsn += 2
         }
     }
@@ -754,6 +748,8 @@ The home planet (lsn = 0, md ≈ 220) contributes
 planets are small bonuses that the viability window tunes.
 
 ## Function 2 — Apply a Template to a System
+
+> **Not yet implemented.** The rules below describe planned behavior for a future implementation.
 
 ```go
 func ApplyHomeStarTemplate(rng *prng.PRNG, template *HomeStarTemplate, planets []*Planet) error
@@ -963,11 +959,11 @@ return nil
 
 ## Function Summary
 
-| Function                     | Input                                              | Output                  | Side effects         |
-|------------------------------|----------------------------------------------------|-------------------------|----------------------|
-| `GenerateHomeStarTemplate` | `*prng.PRNG`, `numPlanets int`                     | `*HomeStarTemplate`   | None (nil on failure)|
-| `ApplyHomeStarTemplate`    | `*prng.PRNG`, `*HomeStarTemplate`, `[]*Planet`   | `error`                 | Mutates `planets`    |
-| `approximateLSN`             | `candidate`, `home` (both `*TemplatePlanet`)       | `int`                   | None                 |
+| Function                              | Input                                              | Output                            | Side effects         |
+|---------------------------------------|----------------------------------------------------|------------------------------------|----------------------|
+| `generateHomeStarTemplateAttempt`     | `*prng.PRNG`, `numPlanets int`                     | `(*HomeStarTemplate, int)`         | None                 |
+| `ApplyHomeStarTemplate` *(not yet implemented)* | `*prng.PRNG`, `*HomeStarTemplate`, `[]*Planet` | `error`                       | Mutates `planets`    |
+| `approximateLSN`                      | `candidate`, `home` (both `TemplatePlanet`)        | `int`                              | None                 |
 
 ## Relationship to Other Subsystems
 

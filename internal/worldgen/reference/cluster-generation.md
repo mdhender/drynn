@@ -82,6 +82,14 @@ This is the standard cube-distance formula for axial hex coordinates.
 | SO2  | 12    | Sulfur Dioxide     |
 | H2S  | 13    | Hydrogen Sulfide   |
 
+### Planet Kind
+
+| Name             | Value | Description                                |
+|------------------|-------|--------------------------------------------|
+| KindRocky        | 1     | Terrestrial planet (diameter ≤ 40)         |
+| KindGasGiant     | 2     | Gas giant (diameter > 40)                  |
+| KindAsteroidBelt | 3     | Asteroid belt (reserved, not yet emitted)  |
+
 ### Planet Special
 
 The special designation is a **struct of bools**, not an integer enum.
@@ -111,13 +119,15 @@ Cluster {
     Systems           []*System                    // all systems (placement-order)
     Stars             []*Star                      // all stars (system-then-star order)
     Planets           []*Planet                    // all planets (star-then-orbit order)
+    Deposits          []*Deposit                   // all deposits (planet-then-N order)
     HomeStarTemplates []*HomeStarTemplateOutcome   // stage-1 library (length 10, 0..2 nil)
 }
 ```
 
 Cluster also exposes lookup helpers `StarsForSystem(sysID)`,
-`PlanetsForStar(starID)`, and `PlanetsForSystem(sysID)` which do
-linear scans — fine at worldgen scale.
+`PlanetsForStar(starID)`, `PlanetsForSystem(sysID)`, and
+`DepositsForPlanet(planetID)` which do linear scans — fine at
+worldgen scale.
 
 ### System
 
@@ -155,6 +165,7 @@ Planet {
     ID               int              // stable sequential identifier
     StarID           int              // owning Star.ID
     Orbit            int              // 1-based position from the star (1 = innermost)
+    Kind             PlanetKind       // KindRocky (diameter ≤ 40) or KindGasGiant (> 40)
     Diameter         int              // in thousands of kilometers
     Density          float64          // g/cm³ (Earth ≈ 5.5)
     Gravity          float64          // surface gravity in G's (Earth = 1.0)
@@ -166,7 +177,7 @@ Planet {
         IdealColony     bool
         RadioactiveHell bool
     }
-    Gases            map[Gas]int      // atmospheric gas → percentage
+    Gases            map[AtmosphericGas]int // atmospheric gas → percentage
     MiningDifficulty float64          // mining difficulty
 }
 ```
@@ -335,15 +346,18 @@ while num_planets > 9:
 #### 2e — Generate Planets
 
 For each orbit `1..num_planets`, call the planet generation procedure
-(see [planet-generation.md](planet-generation.md)).
+(see [planet-generation.md](planet-generation.md)). After diameter is
+rolled, `Planet.Kind` is stamped by `planetKindFromDiameter(p.Diameter)`
+(see [planets.go](../planets.go)).
 
 ### Step 3 — Output
 
 The result of cluster creation is a single `Cluster` record containing:
 
 1. **Radius** — the hex disk radius.
-2. **Systems** — an array of `System` records, each containing one or
-   more `Star` records, each containing its `Planet` records.
+2. **Systems** — a flat slice of `*System` records.
+3. **Stars** — a flat slice of `*Star` records, linked to Systems via `Star.SystemID`.
+4. **Planets** — a flat slice of `*Planet` records, linked to Stars via `Planet.StarID`.
 
 ## Entry Point
 
