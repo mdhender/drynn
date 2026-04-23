@@ -43,7 +43,7 @@ the staged code lands under the final names.
   - Added **Stage-1 Driver** section describing the shared candidate stream, 10k cap, per-slot metadata, NULL slot semantics, viability window as a GM knob, match-required rule, and own PRNG substream.
   - Reference doc now uses `HomeStarTemplate` throughout (rename landed).
 - [x] Update `design/home-system-template-design.md` DRAFT banner to point at this plan; note that per-planet generation (steps 1a–1k) remains authoritative and is not changed by the stage-1 work.
-- [ ] Update `reference/home-system-generation.md` Phase 1 to match the new driver (candidate stream, not a per-count "repeat until viable" loop).
+- [x] Update `reference/home-system-generation.md` Phase 1 to match the new driver (candidate stream, not a per-count "repeat until viable" loop).
 
 ## 3. Generator / Cluster shape refactor
 

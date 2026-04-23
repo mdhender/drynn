@@ -160,18 +160,23 @@ GM review UI alongside each slot's `Attempts` and `BestScore`.
 
 ### Configuration
 
-The stage-1 driver exposes two knobs, wired through `worldgen.Generate`
-options:
+The stage-1 driver exposes two knobs. Staged callers pass them as
+explicit arguments to
+`GenerateHomeStarTemplates(rng, window, maxCandidateRolls)` (see
+`cmd/drynn simulate`); the `worldgen.Generate` convenience wrapper
+surfaces them as option functions:
 
 - `WithViabilityWindow(w)` — a `(Min, Max)` exclusive acceptance band.
   Narrower windows are harsher, shifted windows raise or lower the
   difficulty floor/ceiling.
 - `WithMaxCandidateRolls(n)` — the candidate-roll budget.
 
-Per-stage PRNG substreams are not yet plumbed through; stage 1
-currently shares the cluster generator's PRNG. Re-running stage 1 in
-isolation (with different seeds or windows) is a future extension —
-see `internal/worldgen/staged-generator-plan.md`.
+Per-stage PRNG substreams are plumbed through: `worldgen.Generate`
+splits the master PRNG once per stage (templates → cluster →
+deposits) via `prng.PRNG.Split()`, and staged callers derive the
+same substreams explicitly before invoking each stage. Re-running
+stage 1 in isolation with a different seed or window therefore does
+not perturb later stages' output under the same master seed.
 
 ## Phase 2 — System Selection
 
