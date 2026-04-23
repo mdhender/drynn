@@ -26,33 +26,33 @@ Apply generation rules in this precedence order:
 
 Use these values exactly unless another alpha rule in this document says otherwise.
 
-| Name | Value |
-|---|---|
-| Planet count per non-home system | `2d5 - 1` |
-| Planet count per home system | `10` |
-| Planet types | `rocky`, `gas giant`, `asteroid belt` |
-| Alpha generated planet type | `rocky` |
-| LSN generation range | `0..99` (the model permits `0..100`; generation intentionally stays below `100`) |
-| Habitable threshold | `LSN < 25` |
-| Initial planet LSN roll | `10d10 - 1` |
-| Orbit 3 target roll | `2d8 - 2` |
-| Farmland Natural Resource count per eligible planet | `26 - LSN` |
-| Farmland `Capacity` | `1` (each row hosts one farm) |
-| Farmland `Base Extraction` | `100` (alpha default) |
-| Farmland `Yield Percent` | `max(1, 15 - orbit)` |
-| Farmland `Is Infinite` | `true` |
-| Standard mineable `Capacity` | `1,000 * orbit` |
-| Standard mineable `Base Extraction` | `100` (alpha default) |
-| Standard mineable `Yield Percent` | `10` |
-| Standard mineable `Reserves` | `LSN * 1,000,000` |
-| Standard mineable `Is Infinite` | `false` |
-| Additional mineable initial chance | `LSN` |
-| Homeworld mineable `Capacity` | `10,000` |
-| Homeworld mineable `Base Extraction` | `100` |
-| Homeworld mineable `Yield Percent` | `1` |
-| Homeworld mineable `Is Infinite` | `true` |
-| Jump route `Cost` | `50` |
-| Jump route `Last Turn Used` | `NULL` (never used) |
+| Name                                                | Value                                                                            |
+|-----------------------------------------------------|----------------------------------------------------------------------------------|
+| Planet count per non-home system                    | `2d5 - 1`                                                                        |
+| Planet count per home system                        | `10`                                                                             |
+| Planet types                                        | `rocky`, `gas giant`, `asteroid belt`                                            |
+| Alpha generated planet type                         | `rocky`                                                                          |
+| LSN generation range                                | `0..99` (the model permits `0..100`; generation intentionally stays below `100`) |
+| Habitable threshold                                 | `LSN < 25`                                                                       |
+| Initial planet LSN roll                             | `10d10 - 1`                                                                      |
+| Orbit 3 target roll                                 | `2d8 - 2`                                                                        |
+| Farmland Natural Resource count per eligible planet | `26 - LSN`                                                                       |
+| Farmland `Capacity`                                 | `1` (each row hosts one farm)                                                    |
+| Farmland `Base Extraction`                          | `100` (alpha default)                                                            |
+| Farmland `Yield Percent`                            | `max(1, 15 - orbit)`                                                             |
+| Farmland `Is Infinite`                              | `true`                                                                           |
+| Standard mineable `Capacity`                        | `1,000 * orbit`                                                                  |
+| Standard mineable `Base Extraction`                 | `100` (alpha default)                                                            |
+| Standard mineable `Yield Percent`                   | `10`                                                                             |
+| Standard mineable `Reserves`                        | `LSN * 1,000,000`                                                                |
+| Standard mineable `Is Infinite`                     | `false`                                                                          |
+| Additional mineable initial chance                  | `LSN`                                                                            |
+| Homeworld mineable `Capacity`                       | `10,000`                                                                         |
+| Homeworld mineable `Base Extraction`                | `100`                                                                            |
+| Homeworld mineable `Yield Percent`                  | `1`                                                                              |
+| Homeworld mineable `Is Infinite`                    | `true`                                                                           |
+| Jump route `Cost`                                   | `50`                                                                             |
+| Jump route `Last Turn Used`                         | `NULL` (never used)                                                              |
 
 Mineable `Resource Type` values: `ore`, `energy`, `gold`, `materials`. The deposit-to-output mapping (`ore → metals`, `energy → fuel`, `gold → gold`, `materials → non-metals`, `farmland → food`) lives in `units-model.md` and is applied by the engine at extraction time; generation does not emit Unit rows.
 
@@ -60,17 +60,17 @@ Mineable `Resource Type` values: `ore`, `energy`, `gold`, `materials`. The depos
 
 ### Star System Fields
 
-| Field | Type | Rule |
-|---|---|---|
+| Field       | Type | Rule                                                 |
+|-------------|------|------------------------------------------------------|
 | Home System | bool | When `true`, the system hosts an empire's home world |
 
 ### Planet Fields
 
-| Field | Type | Rule |
-|---|---|---|
-| Orbit | int | Sequential within the system, starting at `1` |
-| Planet Type | enum | In alpha, always `rocky` |
-| LSN | int (0..100) | Generated by the LSN algorithm below |
+| Field       | Type         | Rule                                          |
+|-------------|--------------|-----------------------------------------------|
+| Orbit       | int          | Sequential within the system, starting at `1` |
+| Planet Type | enum         | In alpha, always `rocky`                      |
+| LSN         | int (0..100) | Generated by the LSN algorithm below          |
 
 ### Home World
 
@@ -78,10 +78,10 @@ For each designated homeworld planet, insert one row into the `Home World` table
 
 ### Jump Route Fields
 
-| Field | Type | Rule |
-|---|---|---|
-| Cost | int | In alpha, always `50` |
-| Last Turn Used | int (nullable) | `NULL` at generation |
+| Field          | Type           | Rule                  |
+|----------------|----------------|-----------------------|
+| Cost           | int            | In alpha, always `50` |
+| Last Turn Used | int (nullable) | `NULL` at generation  |
 
 ## System Generation Order
 
@@ -116,18 +116,18 @@ For a system with `Home System == true`:
 4. Set each planet's `Planet Type` to `rocky`.
 5. Set LSN values by orbit number as follows:
 
-| Orbit | LSN |
-|---|---|
-| `1` | `75` |
-| `2` | `50` |
-| `3` | `25` |
-| `4` | `0` |
-| `5` | `15` |
-| `6` | `99` |
-| `7` | `50` |
-| `8` | `75` |
-| `9` | `90` |
-| `10` | `99` |
+| Orbit | LSN  |
+|-------|------|
+| `1`   | `75` |
+| `2`   | `50` |
+| `3`   | `25` |
+| `4`   | `0`  |
+| `5`   | `15` |
+| `6`   | `99` |
+| `7`   | `50` |
+| `8`   | `75` |
+| `9`   | `90` |
+| `10`  | `99` |
 
 6. Insert a `Home World` row for the planet in orbit `4`.
 7. No other `Home World` rows are inserted for this system.
