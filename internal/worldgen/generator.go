@@ -35,7 +35,7 @@ func Generate(options ...Option) (*Cluster, error) {
 
 	rngTemplates := g.r.Split()
 	rngCluster := g.r.Split()
-	// rngDeposits := g.r.Split()  // reserved for stage 4 (design pending)
+	rngDeposits := g.r.Split()
 
 	cluster, err := GenerateCluster(rngCluster, ClusterOptions{
 		Radius:          g.desiredRadius,
@@ -45,6 +45,7 @@ func Generate(options ...Option) (*Cluster, error) {
 	})
 	if cluster != nil {
 		cluster.HomeStarTemplates = GenerateHomeStarTemplates(rngTemplates, g.viabilityWindow, g.maxCandidateRolls)
+		GenerateDeposits(rngDeposits, cluster)
 	}
 	return cluster, err
 }

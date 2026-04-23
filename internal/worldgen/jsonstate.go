@@ -38,6 +38,7 @@ type clusterDoc struct {
 	Systems           []systemDoc           `json:"systems"`
 	Stars             []starDoc             `json:"stars"`
 	Planets           []planetDoc           `json:"planets"`
+	Deposits          []depositDoc          `json:"deposits"`
 	HomeStarTemplates []homeStarTemplateDoc `json:"home_star_templates,omitempty"`
 }
 
@@ -76,6 +77,16 @@ type gasDoc struct {
 	Percent int    `json:"percent"`
 }
 
+type depositDoc struct {
+	ID               int     `json:"id"`
+	PlanetID         int     `json:"planet_id"`
+	Resource         string  `json:"resource"`
+	UnitCode         string  `json:"unit_code"`
+	Quantity         int     `json:"quantity"`
+	YieldPct         float64 `json:"yield_pct"`
+	MiningDifficulty float64 `json:"mining_difficulty"`
+}
+
 type homeStarTemplateDoc struct {
 	NumPlanets     int                 `json:"num_planets"`
 	Attempts       int                 `json:"attempts"`
@@ -109,10 +120,11 @@ func buildStateDoc(s SimulationOutcome) stateDoc {
 
 func buildClusterDoc(g *Cluster) clusterDoc {
 	out := clusterDoc{
-		Radius:  g.Radius,
-		Systems: make([]systemDoc, 0, len(g.Systems)),
-		Stars:   make([]starDoc, 0, len(g.Stars)),
-		Planets: make([]planetDoc, 0, len(g.Planets)),
+		Radius:   g.Radius,
+		Systems:  make([]systemDoc, 0, len(g.Systems)),
+		Stars:    make([]starDoc, 0, len(g.Stars)),
+		Planets:  make([]planetDoc, 0, len(g.Planets)),
+		Deposits: make([]depositDoc, 0, len(g.Deposits)),
 	}
 	for n := 3; n <= 9; n++ {
 		if n >= len(g.HomeStarTemplates) {
@@ -155,6 +167,17 @@ func buildClusterDoc(g *Cluster) clusterDoc {
 			PressureClass:    p.PressureClass,
 			Atmosphere:       sortGasMap(p.Gases),
 			MiningDifficulty: p.MiningDifficulty,
+		})
+	}
+	for _, d := range g.Deposits {
+		out.Deposits = append(out.Deposits, depositDoc{
+			ID:               d.ID,
+			PlanetID:         d.PlanetID,
+			Resource:         d.Resource.String(),
+			UnitCode:         d.Resource.UnitCode(),
+			Quantity:         d.Quantity,
+			YieldPct:         d.YieldPct,
+			MiningDifficulty: d.MiningDifficulty,
 		})
 	}
 	return out

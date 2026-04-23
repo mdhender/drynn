@@ -83,7 +83,7 @@ the staged code lands under the final names.
 - [x] `Planet.Kind` field added (`KindRocky`, `KindGasGiant`; `KindAsteroidBelt` reserved). Stamped in `rollPlanet` and re-stamped inside the template earth-like override. Helper `planetKindFromDiameter` centralizes the rule.
 - [x] Inline `Diameter > 40` checks migrated to `Kind == KindGasGiant` at `templates.go:174` and `generator.go:244`. JSON state now surfaces `kind` on planet and template-planet docs.
 - [x] Quantity-range distribution: **triangular** (sum of two equal dice × step). Log-uniform and hybrid variants documented as playtest fallbacks. See design doc § Quantity Distribution.
-- [ ] Implement `GenerateDeposits(rng, cluster)` per the design doc; add `Deposits []*Deposit` slice to `Cluster` and wire into the staged `Generate(...)` entry point.
+- [x] Implemented `GenerateDeposits(rng, cluster)` per the design doc in `deposits.go`. Added `Deposit` struct and `Resource` enum (`Fuel`/`Gold`/`Metal`/`NonMetal`) with `String()`/`Label()`/`UnitCode()`. `Cluster.Deposits` and `Cluster.DepositsForPlanet(id)` helper in `cluster.go`. Wired as third stage substream in `Generate(...)`; JSON state output surfaces deposits on the cluster doc. Smoke-tested: 10-system run produced 613 deposits across 44 planets with correct resource distribution (gold ~1%, no gold on gas giants), IDs follow `PlanetID*100+N`, quantity/yield ranges match the dice tables.
 
 ---
 

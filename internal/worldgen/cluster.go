@@ -13,10 +13,11 @@ package worldgen
 // makes staged generators (templates, deposits) trivially composable.
 // See internal/worldgen/staged-generator-plan.md.
 type Cluster struct {
-	Radius  int
-	Systems []*System
-	Stars   []*Star
-	Planets []*Planet
+	Radius   int
+	Systems  []*System
+	Stars    []*Star
+	Planets  []*Planet
+	Deposits []*Deposit
 
 	// HomeStarTemplates is the stage-1 output, indexed by planet count.
 	// Length is always 10; indexes 0..2 are always nil and 3..9 are
@@ -69,11 +70,26 @@ func (c *Cluster) PlanetsForSystem(sysID int) []*Planet {
 	return out
 }
 
+// DepositsForPlanet returns the deposits attached to the given planet,
+// in stamped (1-based N) order.
+func (c *Cluster) DepositsForPlanet(planetID int) []*Deposit {
+	var out []*Deposit
+	for _, d := range c.Deposits {
+		if d.PlanetID == planetID {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
 // TotalStars returns the number of stars in the cluster.
 func (c *Cluster) TotalStars() int { return len(c.Stars) }
 
 // TotalPlanets returns the number of planets in the cluster.
 func (c *Cluster) TotalPlanets() int { return len(c.Planets) }
+
+// TotalDeposits returns the number of deposits in the cluster.
+func (c *Cluster) TotalDeposits() int { return len(c.Deposits) }
 
 // CountMultiStarSystems returns the number of systems containing more
 // than one star.
